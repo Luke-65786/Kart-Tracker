@@ -9,6 +9,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { summarizeSession } from "./lib/timing.js";
+import { inFolder } from "./lib/folders.js";
 
 export default function FolderManager({
   folders,
@@ -17,7 +18,7 @@ export default function FolderManager({
   onCreate,
   onRename,
   onDelete,
-  onMove,
+  onMembershipChange,
   onOpen,
   busy,
 }) {
@@ -42,7 +43,7 @@ export default function FolderManager({
     <div className="folder-manager">
       <p className="modal-description">
         Group your Excel sessions by track, event, or date. Each folder has a
-        live overall kart comparison.
+        live overall kart comparison. Sessions can belong to multiple folders.
       </p>
       <form className="new-folder-form" onSubmit={create}>
         <label className="visually-hidden" htmlFor="new-folder-name">
@@ -67,8 +68,8 @@ export default function FolderManager({
       )}
       <div className="folder-list">
         {folders.map((folder) => {
-          const members = sessions.filter(
-            (session) => session.folderId === folder.id,
+          const members = sessions.filter((session) =>
+            inFolder(session, folder.id),
           );
           return (
             <div
@@ -133,7 +134,7 @@ export default function FolderManager({
                 onClick={() => {
                   if (
                     !window.confirm(
-                      `Delete the folder “${folder.name}”? All its sessions will be kept in All sessions.`,
+                      `Delete the folder “${folder.name}”? Its sessions and their other folder assignments will be kept.`,
                     )
                   )
                     return;
@@ -160,8 +161,8 @@ export default function FolderManager({
             <span>Changes save automatically</span>
           </div>
           <p>
-            Select a session to move it into this folder. Uncheck it to keep it
-            in All sessions.
+            Check a session to add it to this folder. It can stay in other
+            folders too. Unchecking removes it from this folder only.
           </p>
           <div className="folder-member-list">
             {!sessions.length && (
@@ -172,20 +173,25 @@ export default function FolderManager({
             )}
             {sessions.map((session) => {
               const info = summarizeSession(session);
-              const currentFolder = folders.find(
-                (folder) => folder.id === session.folderId,
+              const currentFolders = folders.filter((folder) =>
+                inFolder(session, folder.id),
               );
+              const included = inFolder(session, editing.id);
               return (
                 <label
-                  className={`combine-option ${session.folderId === editing.id ? "checked" : ""}`}
+                  className={`combine-option ${included ? "checked" : ""}`}
                   key={session.id}
                 >
                   <input
                     type="checkbox"
                     aria-label={`Add ${session.name} to ${editing.name}`}
-                    checked={session.folderId === editing.id}
+                    checked={included}
                     onChange={(e) =>
-                      onMove(session.id, e.target.checked ? editing.id : null)
+                      onMembershipChange(
+                        session.id,
+                        editing.id,
+                        e.target.checked,
+                      )
                     }
                   />
                   <span className="combine-option-info">
@@ -195,11 +201,13 @@ export default function FolderManager({
                       {session.isCombined ? " · Combined analysis" : ""}
                     </small>
                     <small>
-                      {currentFolder ? `In ${currentFolder.name}` : "Unfiled"} ·{" "}
-                      {session.fileName}
+                      {currentFolders.length
+                        ? `In ${currentFolders.map((folder) => folder.name).join(", ")}`
+                        : "Unfiled"}{" "}
+                      · {session.fileName}
                     </small>
                   </span>
-                  {session.folderId === editing.id ? (
+                  {included ? (
                     <Check size={17} />
                   ) : (
                     <FileSpreadsheet size={17} />

@@ -48,14 +48,12 @@ test("deleting the last uploaded session leaves the workspace empty instead of r
   const sheet = wb.addWorksheet("Laps");
   sheet.addRow(["Lap", "Kart 2"]);
   sheet.addRow([1, 60]);
-  await page
-    .getByLabel("Upload Excel lap times")
-    .setInputFiles({
-      name: "my-laps.xlsx",
-      mimeType:
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      buffer: Buffer.from(await wb.xlsx.writeBuffer()),
-    });
+  await page.getByLabel("Upload Excel lap times").setInputFiles({
+    name: "my-laps.xlsx",
+    mimeType:
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    buffer: Buffer.from(await wb.xlsx.writeBuffer()),
+  });
   await expect(page.locator(".imported-badge")).toBeVisible();
   await page.getByRole("button", { name: /^Sessions/ }).click();
   page.once("dialog", (dialog) => dialog.accept());
@@ -116,7 +114,14 @@ test("existing workspaces lose only the old demo and keep real uploads and folde
     await page.evaluate(() =>
       JSON.parse(localStorage.getItem("kartlab.sessions.v1")),
     ),
-  ).toEqual([uploaded]);
+  ).toEqual([
+    {
+      ...Object.fromEntries(
+        Object.entries(uploaded).filter(([key]) => key !== "folderId"),
+      ),
+      folderIds: ["track"],
+    },
+  ]);
   await page.reload();
   await expect(page.locator("#folder-select option:checked")).toHaveText(
     "Race day",
@@ -135,13 +140,11 @@ test("an old sample-only workspace becomes empty and an invalid first upload add
   await expect(
     page.getByRole("heading", { name: "Your next session starts here." }),
   ).toBeVisible();
-  await page
-    .getByLabel("Upload Excel lap times")
-    .setInputFiles({
-      name: "broken.xlsx",
-      mimeType: "application/octet-stream",
-      buffer: Buffer.from("broken"),
-    });
+  await page.getByLabel("Upload Excel lap times").setInputFiles({
+    name: "broken.xlsx",
+    mimeType: "application/octet-stream",
+    buffer: Buffer.from("broken"),
+  });
   await expect(page.getByRole("alert")).toContainText("could not be read");
   await expect(page.locator(".leaderboard")).toHaveCount(0);
 });

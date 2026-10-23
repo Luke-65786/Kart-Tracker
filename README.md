@@ -49,11 +49,11 @@ Settings also include UI scale from 80% to 125%, comfortable or compact table sp
 
 ### Folders and overall kart comparisons
 
-Use **New folder** or **Folders** to create a named folder. Choose its saved sessions using the checkboxes, or move an individual session using the folder selector in **Sessions**. A session belongs to one folder at a time. Select a folder in the main folder picker before uploading to put new Excel files directly into it.
+Use **New folder** or **Folders** to create a named folder. Choose its saved sessions using the checkboxes, or open a session’s folder list in **Sessions** and check every folder it belongs to. A session can belong to multiple folders at once. Unchecking it removes it only from that folder. Select a folder in the main folder picker before uploading to put new Excel files directly into it.
 
 Each folder opens an overall comparison that pools the raw laps by kart number and updates as files are added, moved, or removed. The overview’s session picker displays the folder’s name, with a **Folder overview** badge identifying its combined comparison. A folder works with a single file as well as multiple files. Its session picker also lets you inspect individual sessions. Overlapping combined analyses count each original source once. Multi-file uploads inside a folder keep the individual files there; the folder supplies their live combined comparison.
 
-Folders can be renamed or deleted. Deleting a folder keeps all its sessions in **All sessions**. Existing saved sessions remain available after upgrading, and folder membership is retained in this browser.
+Folders can be renamed or deleted. Deleting a folder keeps all its sessions in **All sessions** and preserves their other folder assignments. Each folder includes a shared session’s laps once, and **All sessions** keeps a single saved copy. Existing single-folder assignments upgrade automatically, with uploaded laps and folder names retained in this browser.
 
 ### Delta to the fastest kart
 
@@ -84,4 +84,4 @@ Browser tests use Playwright. Install its Chromium once with `npx playwright ins
 CHROMIUM_PATH=/usr/bin/chromium npm run test:e2e
 ```
 
-One additional browser test is enabled by setting `SAMPLE_XLSX` to the original supplied workbook’s path. That workbook is not committed because it contains driver names. Without the variable, the external-workbook test is explicitly skipped. A generated workbook regression test covers the namespace-prefixed XML used by the timing exporter. Session and folder tests cover weighted averages, overlapping combinations, source provenance, batch failures, persistence, folder creation and movement, safe deletion, deltas, exports, empty starts, legacy sample cleanup, theme and display preference persistence, UI scaling on desktop and mobile, and a dark default with a light operating-system theme.
+One additional browser test is enabled by setting `SAMPLE_XLSX` to the original supplied workbook’s path. That workbook is not committed because it contains driver names. Without the variable, the external-workbook test is explicitly skipped. A generated workbook regression test covers the namespace-prefixed XML used by the timing exporter. Session and folder tests cover weighted averages, overlapping combinations, source provenance, batch failures, persistence, folder creation, shared memberships, legacy membership upgrades, safe deletion, deltas, exports, empty starts, legacy sample cleanup, theme and display preference persistence, UI scaling on desktop and mobile, and a dark default with a light operating-system theme.

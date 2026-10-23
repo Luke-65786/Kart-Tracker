@@ -80,8 +80,8 @@ test("folder uploads produce a live, persistent overall kart comparison and accu
     JSON.parse(localStorage.getItem("kartlab.sessions.v1")),
   );
   expect(saved).toHaveLength(2);
-  expect(saved.filter((s) => s.folderId)).toHaveLength(2);
-  expect(saved.every((s) => Boolean(s.folderId))).toBe(true);
+  expect(saved.every((s) => s.folderIds.length === 1)).toBe(true);
+  expect(saved[0].folderIds).toEqual(saved[1].folderIds);
   await page.reload();
   await expect(page.locator("#folder-select option:checked")).toHaveText(
     "Race day",
@@ -97,7 +97,7 @@ test("folder uploads produce a live, persistent overall kart comparison and accu
   expect(errors).toEqual([]);
 });
 
-test("existing sessions can be filed, moved, renamed, and retained when a folder is deleted", async ({
+test("existing sessions can be shared and retain their other folders after a folder is renamed or deleted", async ({
   page,
 }) => {
   await page.goto("/");
@@ -118,9 +118,10 @@ test("existing sessions can be filed, moved, renamed, and retained when a folder
   await createFolder(page, "Other track");
   await page.getByLabel("Add Practice laps to Other track").check();
   await page.getByLabel("Close dialog").click();
-  await expect(
-    page.getByText("Give this folder some track time."),
-  ).toBeVisible();
+  await expect(page.locator(".metric-value").nth(1)).toHaveText("2");
+  await expect(page.locator("#session-select option:checked")).toHaveText(
+    "Race day",
+  );
   await page.getByLabel("View folder").selectOption({ label: "Other track" });
   await expect(page.locator(".metric-value").nth(1)).toHaveText("2");
   await page
@@ -137,11 +138,24 @@ test("existing sessions can be filed, moved, renamed, and retained when a folder
   );
   await page.getByRole("button", { name: /^Sessions/ }).click();
   await expect(page.getByLabel("Session name for practice.xlsx")).toBeVisible();
-  await expect(page.getByLabel("Folder for Practice laps")).toHaveValue("");
+  await expect(page.getByLabel("Folders for Practice laps")).toContainText(
+    "Race day",
+  );
+  await page.getByLabel("Folders for Practice laps").click();
+  await expect(
+    page.getByLabel("Include Practice laps in Race day"),
+  ).toBeChecked();
+  await expect(
+    page.getByLabel("Include Practice laps in Test day"),
+  ).toHaveCount(0);
   const sessionCount = await page.evaluate(
     () => JSON.parse(localStorage.getItem("kartlab.sessions.v1")).length,
   );
   expect(sessionCount).toBe(1);
+  await page.getByLabel("Open Practice laps", { exact: true }).click();
+  await expect(page.locator("#folder-select option:checked")).toHaveText(
+    "Race day",
+  );
 });
 
 test("folders and the delta column are usable on mobile", async ({ page }) => {
@@ -162,6 +176,21 @@ test("folders and the delta column are usable on mobile", async ({ page }) => {
     page.getByRole("columnheader", { name: "Δ TO FASTEST" }),
   ).toBeInViewport();
   await expect(page.locator(".delta-time").nth(1)).toHaveText("+4.000s");
+  await page.getByLabel("Open navigation").click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: /^Sessions/ })
+    .click();
+  await page.getByLabel("Folders for Laps", { exact: true }).click();
+  await expect(
+    page.getByLabel("Include Laps in Mobile practice"),
+  ).toBeChecked();
+  await page.getByLabel("Include Laps in Mobile practice").uncheck();
+  await expect(
+    page.getByLabel("Include Laps in Mobile practice"),
+  ).not.toBeChecked();
+  await page.getByLabel("Include Laps in Mobile practice").check();
+  await page.getByLabel("Close dialog").click();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -174,4 +203,114 @@ test("folders and the delta column are usable on mobile", async ({ page }) => {
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+});
+
+test("Sessions can share one upload across folders, persist the choices and remove each assignment independently", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .getByLabel("Upload Excel lap times")
+    .setInputFiles(
+      await file("shared.xlsx", "Shared heat", { 2: [60], 13: [64] }),
+    );
+  await expect(page.locator(".imported-badge")).toBeVisible();
+  await page.getByRole("button", { name: "New folder", exact: true }).click();
+  await createFolder(page, "Race day");
+  await createFolder(page, "Other track");
+  await page.getByLabel("Close dialog").click();
+  await page.getByRole("button", { name: /^Sessions/ }).click();
+  await page.getByLabel("Folders for Shared heat", { exact: true }).click();
+  await page
+    .getByLabel("Include Shared heat in Race day", { exact: true })
+    .check();
+  await page
+    .getByLabel("Include Shared heat in Other track", { exact: true })
+    .check();
+  await expect(
+    page.getByLabel("Include Shared heat in Race day", { exact: true }),
+  ).toBeChecked();
+  await page.reload();
+  await page.getByRole("button", { name: /^Sessions/ }).click();
+  await page.getByLabel("Folders for Shared heat", { exact: true }).click();
+  await expect(
+    page.getByLabel("Include Shared heat in Race day", { exact: true }),
+  ).toBeChecked();
+  await expect(
+    page.getByLabel("Include Shared heat in Other track", { exact: true }),
+  ).toBeChecked();
+  expect(
+    await page.evaluate(
+      () => JSON.parse(localStorage.getItem("kartlab.sessions.v1")).length,
+    ),
+  ).toBe(1);
+  await page.getByLabel("Close dialog").click();
+  await page.getByLabel("View folder").selectOption({ label: "Race day" });
+  await page
+    .getByLabel("Upload Excel lap times")
+    .setInputFiles(
+      await file("race.xlsx", "Race heat", {
+        2: [90, 90, 90],
+        13: [66, 66, 66],
+      }),
+    );
+  await expect(page.locator(".metric-value").nth(1)).toHaveText("8");
+  await expect(page.locator(".delta-time").nth(1)).toHaveText("+17.000s");
+  await page.getByLabel("View folder").selectOption({ label: "Other track" });
+  await page
+    .getByLabel("Upload Excel lap times")
+    .setInputFiles(
+      await file("other.xlsx", "Other heat", { 2: [58], 13: [70] }),
+    );
+  await expect(page.locator(".metric-value").nth(1)).toHaveText("4");
+  await expect(page.locator(".delta-time").nth(1)).toHaveText("+8.000s");
+  await page.getByRole("button", { name: /^Sessions/ }).click();
+  await page.getByLabel("Open Shared heat", { exact: true }).click();
+  await expect(page.locator("#folder-select option:checked")).toHaveText(
+    "Other track",
+  );
+  await expect(page.locator("#session-select option:checked")).toHaveText(
+    "Shared heat",
+  );
+  await page
+    .getByRole("button", { name: "Manage folders", exact: true })
+    .click();
+  await page.getByLabel("Manage files in Race day", { exact: true }).click();
+  await page
+    .getByLabel("Add Shared heat to Race day", { exact: true })
+    .uncheck();
+  await page.getByLabel("Open Race day comparison", { exact: true }).click();
+  await expect(page.locator(".metric-value").nth(1)).toHaveText("6");
+  await expect(page.locator(".delta-time").nth(1)).toHaveText("+24.000s");
+  await page.getByLabel("View folder").selectOption({ label: "Other track" });
+  await expect(page.locator(".metric-value").nth(1)).toHaveText("4");
+  await expect(page.locator(".delta-time").nth(1)).toHaveText("+8.000s");
+  await page.getByRole("button", { name: /^Sessions/ }).click();
+  await page.getByLabel("Folders for Shared heat", { exact: true }).click();
+  await expect(
+    page.getByLabel("Include Shared heat in Race day", { exact: true }),
+  ).not.toBeChecked();
+  await page
+    .getByLabel("Include Shared heat in Other track", { exact: true })
+    .uncheck();
+  await page.getByLabel("Close dialog").click();
+  await expect(page.locator(".metric-value").nth(1)).toHaveText("2");
+  await page.reload();
+  const sessions = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("kartlab.sessions.v1")),
+  );
+  expect(sessions).toHaveLength(3);
+  expect(
+    sessions.find((session) => session.name === "Shared heat").folderIds,
+  ).toEqual([]);
+  expect(
+    sessions
+      .find((session) => session.name === "Shared heat")
+      .karts.flatMap((kart) => kart.laps),
+  ).toHaveLength(2);
+  await page.getByLabel("View folder").selectOption({ label: "All sessions" });
+  await page.getByRole("button", { name: /^Sessions/ }).click();
+  await expect(page.locator(".saved-session")).toHaveCount(3);
+  await page.getByLabel("Open Shared heat", { exact: true }).click();
+  await expect(page.locator(".metric-value").nth(1)).toHaveText("2");
 });

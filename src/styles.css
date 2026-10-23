@@ -1459,9 +1459,10 @@ td {
   margin-bottom: 24px;
 }
 .saved-session {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 12px;
+  gap: 6px 12px;
   background: var(--surface);
   border: 1px solid var(--border);
   padding: 13px;
@@ -1484,9 +1485,8 @@ td {
 }
 .saved-session-info {
   min-width: 0;
-  flex: 1;
 }
-.saved-session-info input {
+.saved-session-info > input {
   font-size: 13px;
   border: 1px solid transparent;
   background: transparent;
@@ -1495,7 +1495,7 @@ td {
   width: 100%;
   border-radius: 3px;
 }
-.saved-session-info input:hover {
+.saved-session-info > input:hover {
   border-color: var(--border);
 }
 .saved-session-info p {
@@ -3019,7 +3019,7 @@ td {
   .saved-session-icon > svg {
     width: 17px;
   }
-  .saved-session-info input {
+  .saved-session-info > input {
     font-size: 11px;
   }
   .saved-session-info p {
@@ -3263,24 +3263,7 @@ td {
   margin-top: 12px;
   line-height: 1.7;
 }
-.session-folder-field {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--muted);
-  margin: 8px 0 0 4px;
-  max-width: 190px;
-}
-.session-folder-field select {
-  border: 0;
-  background: transparent;
-  font-size: 9px;
-  width: 100%;
-  min-width: 0;
-  padding: 3px 0;
-  text-overflow: ellipsis;
-  color: var(--accent-text);
-}
+
 .empty-folder {
   padding: 65px 25px;
   text-align: center;
@@ -3400,9 +3383,6 @@ td {
   }
   .delta-time {
     font-size: 10px;
-  }
-  .session-folder-field {
-    margin-top: 5px;
   }
 }
 .combined-badge {
@@ -3620,4 +3600,86 @@ td {
   .import-note {
     font-size: 8px;
   }
+}
+
+/* Sessions are shared between folders; each checkbox changes one membership. */
+.session-folders {
+  grid-column: 2 / -1;
+  font-size: 10px;
+  min-width: 0;
+}
+.session-folders[open] {
+  grid-column: 1 / -1;
+}
+.session-folders summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: var(--muted);
+  list-style: none;
+  padding-block: 3px;
+  border-radius: 4px;
+}
+.session-folders summary::-webkit-details-marker {
+  display: none;
+}
+.session-folders summary > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.session-folders summary > svg:last-child {
+  margin-left: auto;
+}
+.session-folders[open] summary,
+.session-folders summary:hover {
+  color: var(--accent-text);
+}
+.session-folders[open] summary > svg:last-child {
+  transform: rotate(180deg);
+}
+.session-folders summary:focus-visible {
+  outline: 3px solid var(--accent-text);
+  outline-offset: 3px;
+}
+.session-folder-options {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  margin-top: 7px;
+  max-height: 215px;
+  overflow: auto;
+}
+.session-folder-options > p {
+  margin: 2px 3px 6px;
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.session-folder-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 7px 4px;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.session-folder-option:hover {
+  background: var(--surface-hover);
+}
+.session-folder-option input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  flex-shrink: 0;
+  accent-color: var(--accent-text);
+  cursor: pointer;
+}
+.session-folder-option > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
 }

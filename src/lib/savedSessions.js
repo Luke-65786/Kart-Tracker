@@ -1,3 +1,5 @@
+import { normalizeSessionFolders } from "./folders.js";
+
 function isLegacySample(session) {
   return session?.isSample === true || session?.id === "sample-a-final";
 }
@@ -25,7 +27,8 @@ function isSession(session) {
 
 export function restoreSessions(stored) {
   if (!Array.isArray(stored)) return [];
-  return stored.filter(isSession).flatMap((session) => {
+  return stored.filter(isSession).flatMap((storedSession) => {
+    const session = normalizeSessionFolders(storedSession);
     if (isLegacySample(session)) return [];
     if (!Array.isArray(session.sources)) return [session];
     const removed = new Set(

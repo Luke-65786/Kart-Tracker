@@ -15,6 +15,8 @@ const uploaded = {
   skipped: 0,
   karts: [{ number: "44", laps: [{ lap: 1, seconds: 77, sheet: "Laptimes" }] }],
 };
+const { folderId: oldFolderId, ...uploadedData } = uploaded;
+const migratedUpload = { ...uploadedData, folderIds: [oldFolderId] };
 
 test("new, empty, and unreadable saved workspaces have no starter sessions", () => {
   for (const value of [null, undefined, [], {}, "invalid"])
@@ -25,9 +27,9 @@ test("new, empty, and unreadable saved workspaces have no starter sessions", () 
 
 test("upgrades remove the old sample while preserving real uploads, including matching names and folder membership", () => {
   const restored = restoreSessions([legacySample, uploaded]);
-  assert.deepEqual(restored, [uploaded]);
-  assert.equal(restored[0], uploaded);
-  assert.equal(restored[0].folderId, "track");
+  assert.deepEqual(restored, [migratedUpload]);
+  assert.equal(restored[0].karts, uploaded.karts);
+  assert.equal(uploaded.folderId, "track");
 });
 
 test("removes sample laps from combined analyses without removing uploaded laps or changing their saved names", () => {
@@ -40,7 +42,7 @@ test("removes sample laps from combined analyses without removing uploaded laps 
   assert.equal(restored.length, 2);
   const migrated = restored[1];
   assert.equal(migrated.name, "My analysis");
-  assert.equal(migrated.folderId, "track");
+  assert.deepEqual(migrated.folderIds, ["track"]);
   assert.equal(migrated.sources.length, 1);
   assert.equal(migrated.sources[0].id, uploaded.id);
   assert.equal(summarizeSession(migrated).totalLaps, 1);
@@ -50,7 +52,29 @@ test("removes sample laps from combined analyses without removing uploaded laps 
 });
 
 test("one malformed stored entry does not discard unrelated valid uploads", () => {
-  assert.deepEqual(restoreSessions([null, {}, uploaded]), [uploaded]);
+  assert.deepEqual(restoreSessions([null, {}, uploaded]), [migratedUpload]);
+});
+
+test("folder memberships upgrade safely and remain stable after removing the last assignment", () => {
+  const before = JSON.stringify(uploaded);
+  const restored = restoreSessions([
+    uploaded,
+    {
+      ...uploaded,
+      id: "shared",
+      folderIds: ["track", "other", "track", null, 1, ""],
+    },
+    { ...uploaded, id: "unfiled", folderIds: [] },
+    { ...uploadedData, id: "never-filed" },
+  ]);
+  assert.deepEqual(
+    restored.map((session) => session.folderIds),
+    [["track"], ["track", "other"], [], []],
+  );
+  assert.ok(restored.every((session) => !Object.hasOwn(session, "folderId")));
+  assert.equal(JSON.stringify(uploaded), before);
+  assert.deepEqual(restoreSessions(restored), restored);
+  assert.equal(restored[1].karts, uploaded.karts);
 });
 
 test("empty timing summaries have no kart data or invented times", () => {

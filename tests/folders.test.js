@@ -4,6 +4,8 @@ import {
   folderAnalysis,
   folderName,
   unfileFolder,
+  inFolder,
+  withFolderMembership,
 } from "../src/lib/folders.js";
 import { combineSessions } from "../src/lib/combineSessions.js";
 import {
@@ -13,12 +15,12 @@ import {
 } from "../src/lib/timing.js";
 
 const folder = { id: "track", name: "Race day" };
-function session(id, times, folderId = folder.id) {
+function session(id, times, folderIds = [folder.id]) {
   return {
     id,
     name: id,
     fileName: `${id}.xlsx`,
-    folderId,
+    folderIds,
     sheets: 1,
     skipped: 0,
     karts: Object.entries(times).map(([number, values]) => ({
@@ -47,8 +49,8 @@ test("folder comparison supports an empty folder and a single file without chang
 test("folder averages and deltas use all member laps, excluding other folders and unfiled files", () => {
   const a = session("Morning", { 2: [60], 13: [64] });
   const b = session("Afternoon", { 2: [90, 90, 90], 13: [66, 66, 66] });
-  const outside = session("Elsewhere", { 2: [1], 13: [1] }, "other-track");
-  const unfiled = session("Unfiled", { 2: [2] }, null);
+  const outside = session("Elsewhere", { 2: [1], 13: [1] }, ["other-track"]);
+  const unfiled = session("Unfiled", { 2: [2] }, []);
   const stats = summarizeSession(
     folderAnalysis(folder, [a, b, outside, unfiled]),
   );
@@ -64,25 +66,65 @@ test("folder averages and deltas use all member laps, excluding other folders an
 test("folder comparisons update after membership changes and deduplicate overlapping combined analyses", () => {
   const a = session("A", { 2: [60] });
   const b = session("B", { 2: [90, 90, 90] });
-  const combined = { ...combineSessions([a, b]), folderId: folder.id };
+  const combined = { ...combineSessions([a, b]), folderIds: [folder.id] };
   const stats = summarizeSession(folderAnalysis(folder, [a, b, combined]));
   assert.equal(stats.totalLaps, 4);
   assert.equal(stats.karts[0].average, 82.5);
-  const moved = { ...b, folderId: "elsewhere" };
+  const moved = { ...b, folderIds: ["elsewhere"] };
   const updated = summarizeSession(folderAnalysis(folder, [a, moved]));
   assert.equal(updated.totalLaps, 1);
   assert.equal(updated.karts[0].average, 60);
 });
 
 test("removing a folder preserves every session and leaves other memberships untouched", () => {
-  const a = session("A", { 2: [60] });
-  const b = session("B", { 13: [70] }, "other-track");
+  const a = session("A", { 2: [60] }, [folder.id, "other-track"]);
+  const b = session("B", { 13: [70] }, ["other-track"]);
   const next = unfileFolder([a, b], folder.id);
   assert.equal(next.length, 2);
-  assert.equal(next[0].folderId, null);
+  assert.deepEqual(next[0].folderIds, ["other-track"]);
   assert.deepEqual(next[0].karts, a.karts);
-  assert.equal(a.folderId, folder.id);
+  assert.deepEqual(a.folderIds, [folder.id, "other-track"]);
   assert.equal(next[1], b);
+});
+
+test("sharing a session adds its laps once to each folder, with independent averages and removals", () => {
+  const original = session("Shared heat", { 2: [60], 13: [64] });
+  const shared = withFolderMembership(
+    withFolderMembership(original, "other-track", true),
+    "other-track",
+    true,
+  );
+  assert.deepEqual(shared.folderIds, [folder.id, "other-track"]);
+  assert.deepEqual(original.folderIds, [folder.id]);
+  assert.equal(shared.karts, original.karts);
+  const a = session("Race heat", { 2: [90, 90, 90], 13: [66, 66, 66] });
+  const b = session("Other heat", { 2: [58], 13: [70] }, ["other-track"]);
+  const other = { id: "other-track", name: "Other track" };
+  const combined = { ...combineSessions([shared, a]), folderIds: [folder.id] };
+  const saved = [shared, a, b, combined];
+  const raceStats = summarizeSession(folderAnalysis(folder, saved));
+  const otherStats = summarizeSession(folderAnalysis(other, saved));
+  assert.equal(raceStats.totalLaps, 8);
+  assert.equal(
+    raceStats.karts.find((kart) => kart.number === "2").average,
+    82.5,
+  );
+  assert.equal(otherStats.totalLaps, 4);
+  assert.equal(
+    otherStats.karts.find((kart) => kart.number === "2").average,
+    59,
+  );
+  assert.equal(otherStats.karts.find((kart) => kart.number === "13").delta, 8);
+  const removed = withFolderMembership(shared, folder.id, false);
+  assert.equal(inFolder(removed, folder.id), false);
+  assert.equal(inFolder(removed, other.id), true);
+  assert.deepEqual(
+    summarizeSession(folderAnalysis(other, [removed, a, b, combined])),
+    otherStats,
+  );
+  const unfiled = withFolderMembership(removed, other.id, false);
+  assert.deepEqual(unfiled.folderIds, []);
+  assert.equal(unfiled.karts, original.karts);
 });
 
 test("folder names are trimmed, unique, and safely renameable", () => {

@@ -38,8 +38,16 @@ import {
   summarizeSession,
 } from "./lib/timing.js";
 import { combineSessions } from "./lib/combineSessions.js";
-import { folderAnalysis, folderName, unfileFolder } from "./lib/folders.js";
+import {
+  folderAnalysis,
+  folderName,
+  inFolder,
+  normalizeSessionFolders,
+  unfileFolder,
+  withFolderMembership,
+} from "./lib/folders.js";
 import FolderManager from "./FolderManager.jsx";
+import SessionFolders from "./SessionFolders.jsx";
 import { restoreSessions } from "./lib/savedSessions.js";
 import SettingsPanel from "./SettingsPanel.jsx";
 import {
@@ -397,9 +405,7 @@ export default function App() {
   const activeFolder = folders.find((folder) => folder.id === activeFolderId);
   const folderMembers = useMemo(
     () =>
-      activeFolder
-        ? sessions.filter((s) => s.folderId === activeFolder.id)
-        : [],
+      activeFolder ? sessions.filter((s) => inFolder(s, activeFolder.id)) : [],
     [sessions, activeFolder],
   );
   const overall = useMemo(
@@ -506,9 +512,9 @@ export default function App() {
   function openSession(id) {
     const selected = sessions.find((s) => s.id === id);
     setActiveFolderId(
-      folders.some((folder) => folder.id === selected?.folderId)
-        ? selected.folderId
-        : null,
+      activeFolder && inFolder(selected, activeFolder.id)
+        ? activeFolder.id
+        : folders.find((folder) => inFolder(selected, folder.id))?.id || null,
     );
     activate(id);
     setModal(null);
@@ -536,9 +542,11 @@ export default function App() {
     }
     setNotice("Folder removed. All sessions have been kept.");
   }
-  function moveSession(id, folderId) {
+  function setSessionMembership(id, folderId, included) {
     setSessions((current) =>
-      current.map((s) => (s.id === id ? { ...s, folderId } : s)),
+      current.map((s) =>
+        s.id === id ? withFolderMembership(s, folderId, included) : s,
+      ),
     );
   }
   function openFile() {
@@ -583,11 +591,14 @@ export default function App() {
           ? combineSessions(imported, `${imported.length} sessions combined`)
           : imported[0];
       const added = destination
-        ? imported.map((s) => ({ ...s, folderId: destination.id }))
+        ? imported.map((s) => withFolderMembership(s, destination.id, true))
         : imported.length > 1
           ? [active, ...imported]
           : imported;
-      setSessions((current) => [...added, ...current]);
+      setSessions((current) => [
+        ...added.map(normalizeSessionFolders),
+        ...current,
+      ]);
       activate(destination ? `folder:${destination.id}` : active.id);
       setNotice(
         destination
@@ -643,7 +654,7 @@ export default function App() {
         sessions.filter((s) => combineIds.includes(s.id)),
         combineName,
       );
-      setSessions((current) => [combined, ...current]);
+      setSessions((current) => [normalizeSessionFolders(combined), ...current]);
       setActiveFolderId(null);
       activate(combined.id);
       setModal(null);
@@ -657,7 +668,7 @@ export default function App() {
   function removeSession(id) {
     if (
       !window.confirm(
-        "Remove this session from this browser? Export your results first if you want to keep them.",
+        "Remove this session from this browser and all its folders? Export your results first if you want to keep them.",
       )
     )
       return;
@@ -1448,7 +1459,7 @@ export default function App() {
             onCreate={createFolder}
             onRename={renameFolder}
             onDelete={deleteFolder}
-            onMove={moveSession}
+            onMembershipChange={setSessionMembership}
             onOpen={chooseFolder}
             busy={busy}
           />
@@ -1527,7 +1538,8 @@ export default function App() {
         >
           <p className="modal-description">
             Saved in this browser. Pick a session to explore, or give it a new
-            name. Combine sessions to analyse their laps together.
+            name. Add a session to multiple folders, or combine sessions to
+            analyse their laps together.
           </p>
           <div className="session-list">
             {!sessions.length && (
@@ -1575,28 +1587,6 @@ export default function App() {
                         </span>
                       )}
                     </p>
-                    <div className="session-folder-field">
-                      <Folder size={12} />
-                      <select
-                        aria-label={`Folder for ${s.name}`}
-                        value={
-                          folders.some((folder) => folder.id === s.folderId)
-                            ? s.folderId
-                            : ""
-                        }
-                        onChange={(e) =>
-                          moveSession(s.id, e.target.value || null)
-                        }
-                      >
-                        <option value="">Unfiled</option>
-                        {folders.map((folder) => (
-                          <option key={folder.id} value={folder.id}>
-                            {folder.name}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown size={11} />
-                    </div>
                   </div>
                   <button
                     className="session-open"
@@ -1618,6 +1608,12 @@ export default function App() {
                   >
                     <Trash2 size={16} />
                   </button>
+                  <SessionFolders
+                    session={s}
+                    folders={folders}
+                    onMembershipChange={setSessionMembership}
+                    onManageFolders={() => setModal("folders")}
+                  />
                 </div>
               );
             })}
@@ -1639,8 +1635,9 @@ export default function App() {
             {busy ? importProgress : "Upload more sessions"}
           </button>
           <p className="modal-footnote">
-            Sessions are saved in this browser. Removing your last session
-            leaves an empty workspace.
+            Sessions are saved in this browser. Deleting a session removes it
+            from every folder. Uncheck a folder to remove only that assignment.
+            Removing your last session leaves an empty workspace.
           </p>
         </Modal>
       )}
