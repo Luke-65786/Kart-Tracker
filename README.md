@@ -51,7 +51,7 @@ Settings also include UI scale from 80% to 125%, comfortable or compact table sp
 
 Use **New folder** or **Folders** to create a named folder. Choose its saved sessions using the checkboxes, or move an individual session using the folder selector in **Sessions**. A session belongs to one folder at a time. Select a folder in the main folder picker before uploading to put new Excel files directly into it.
 
-Each folder opens an **Overall folder comparison** that pools the raw laps by kart number and updates as files are added, moved, or removed. A folder works with a single file as well as multiple files. Its session picker also lets you inspect individual sessions. Overlapping combined analyses count each original source once. Multi-file uploads inside a folder keep the individual files there; the folder supplies their live combined comparison.
+Each folder opens an overall comparison that pools the raw laps by kart number and updates as files are added, moved, or removed. The overview’s session picker displays the folder’s name, with a **Folder overview** badge identifying its combined comparison. A folder works with a single file as well as multiple files. Its session picker also lets you inspect individual sessions. Overlapping combined analyses count each original source once. Multi-file uploads inside a folder keep the individual files there; the folder supplies their live combined comparison.
 
 Folders can be renamed or deleted. Deleting a folder keeps all its sessions in **All sessions**. Existing saved sessions remain available after upgrading, and folder membership is retained in this browser.
 

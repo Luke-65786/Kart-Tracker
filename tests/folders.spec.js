@@ -75,9 +75,7 @@ test("folder uploads produce a live, persistent overall kart comparison and accu
   await expect(page.locator(".delta-time").first()).toHaveText("+17.000s");
   await page.locator("#session-select").selectOption({ label: "Morning heat" });
   await expect(page.locator(".delta-time").nth(1)).toHaveText("+4.000s");
-  await page
-    .locator("#session-select")
-    .selectOption({ label: "Overall folder comparison" });
+  await page.locator("#session-select").selectOption({ label: "Race day" });
   const saved = await page.evaluate(() =>
     JSON.parse(localStorage.getItem("kartlab.sessions.v1")),
   );

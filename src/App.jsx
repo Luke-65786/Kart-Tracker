@@ -949,7 +949,7 @@ export default function App() {
                       >
                         {activeFolder && (
                           <option value={`folder:${activeFolder.id}`}>
-                            Overall folder comparison
+                            {activeFolder.name}
                           </option>
                         )}
                         {visibleSessions.map((s) => (
