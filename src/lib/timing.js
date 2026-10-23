@@ -66,7 +66,17 @@ export function summarizeSession(session) {
     (best, k) => (!best || k.best < best.best ? k : best),
     null,
   );
-  return { karts, totalLaps, average, fastest };
+  const ranked = karts.map((kart) => ({
+    ...kart,
+    delta: Math.max(0, kart.average - karts[0].average),
+  }));
+  return { karts: ranked, totalLaps, average, fastest };
+}
+
+export function formatDelta(seconds) {
+  if (!Number.isFinite(seconds)) return "—";
+  const milliseconds = Math.max(0, Math.round(seconds * 1000));
+  return `${milliseconds > 0 ? "+" : ""}${(milliseconds / 1000).toFixed(3)}s`;
 }
 
 export function formatTime(seconds) {
@@ -79,7 +89,7 @@ export function formatTime(seconds) {
 export function resultsCsv(session) {
   const { karts } = summarizeSession(session);
   return [
-    "Rank,Kart,Laps,Average (seconds),Best (seconds),Worst (seconds),Standard deviation (seconds)",
+    "Rank,Kart,Laps,Average (seconds),Best (seconds),Worst (seconds),Standard deviation (seconds),Gap to fastest average (seconds)",
     ...karts.map((k, index) =>
       [
         index + 1,
@@ -89,6 +99,7 @@ export function resultsCsv(session) {
         k.best.toFixed(3),
         k.worst.toFixed(3),
         k.deviation.toFixed(3),
+        k.delta.toFixed(3),
       ].join(","),
     ),
   ].join("\r\n");

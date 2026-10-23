@@ -3103,6 +3103,323 @@ td {
 .mobile-menu {
   display: none;
 }
+.page-heading > div:first-child {
+  min-width: 0;
+}
+.page-heading h1 {
+  overflow-wrap: anywhere;
+}
+.heading-actions {
+  flex-shrink: 0;
+}
+.folder-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin: -9px 0 20px;
+  min-height: 35px;
+}
+.folder-scope {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  color: var(--accent-text);
+}
+.folder-scope .select-shell {
+  min-width: 95px;
+  max-width: 220px;
+}
+.folder-scope select {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.folder-scope-note {
+  color: var(--muted);
+  font-size: 9px;
+  white-space: nowrap;
+}
+.folder-manage-button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.new-folder-form {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.new-folder-form input {
+  min-width: 0;
+  flex: 1;
+  background: var(--surface-raised);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  padding: 10px 12px;
+}
+.new-folder-form input::placeholder {
+  color: var(--muted);
+}
+.folder-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  max-height: 225px;
+  overflow: auto;
+  margin: 0 0 22px;
+}
+.folder-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--surface-raised);
+}
+.folder-card.selected {
+  border-color: var(--accent-border);
+  background: var(--accent-surface);
+}
+.folder-edit-button {
+  border: 0;
+  padding: 5px;
+  background: none;
+  color: var(--accent-text);
+  display: flex;
+}
+.folder-card-info {
+  min-width: 0;
+  flex: 1;
+}
+.folder-card-info input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px;
+  color: var(--text);
+}
+.folder-card-info input:hover {
+  border-color: var(--accent-border);
+}
+.folder-files-button {
+  display: block;
+  margin-top: 5px;
+  padding: 2px 3px;
+  font-size: 9px;
+  color: var(--muted);
+  background: none;
+  border: 0;
+  text-align: left;
+}
+.folder-files-button:hover {
+  color: var(--accent-text);
+}
+.folder-card .session-open {
+  padding: 6px;
+}
+.folder-members {
+  border-top: 1px solid var(--border);
+  padding-top: 19px;
+}
+.folder-members-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.folder-members-heading h3 {
+  font: 500 16px var(--heading);
+  letter-spacing: -0.4px;
+  overflow-wrap: anywhere;
+}
+.folder-members-heading > span {
+  color: var(--accent-text);
+  font-size: 8px;
+  white-space: nowrap;
+}
+.folder-members > p {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.7;
+  margin: 8px 0 14px;
+}
+.folder-member-list {
+  display: grid;
+  gap: 8px;
+  max-height: 285px;
+  overflow: auto;
+  margin-bottom: 18px;
+}
+.folder-member-list small {
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.no-folders {
+  padding: 20px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 11px;
+}
+.no-folders > svg {
+  color: var(--accent-text);
+}
+.no-folders p {
+  margin-top: 12px;
+  line-height: 1.7;
+}
+.session-folder-field {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  margin: 8px 0 0 4px;
+  max-width: 190px;
+}
+.session-folder-field select {
+  border: 0;
+  background: transparent;
+  font-size: 9px;
+  width: 100%;
+  min-width: 0;
+  padding: 3px 0;
+  text-overflow: ellipsis;
+  color: var(--accent-text);
+}
+.empty-folder {
+  padding: 65px 25px;
+  text-align: center;
+}
+.empty-folder-icon {
+  display: inline-flex;
+  padding: 18px;
+  border: 1px solid var(--accent-border);
+  border-radius: 17px;
+  background: var(--accent-surface);
+  color: var(--accent-text);
+  margin-bottom: 22px;
+}
+.empty-folder h2 {
+  font: 500 25px var(--heading);
+  letter-spacing: -0.8px;
+}
+.empty-folder p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.9;
+  max-width: 420px;
+  margin: 13px auto 24px;
+}
+.empty-folder > div {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+.delta-heading {
+  color: var(--accent-text);
+}
+.delta-time {
+  font: 500 11px var(--heading);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.fastest-delta {
+  color: var(--accent-text);
+}
+.comparison-delta {
+  display: block;
+  margin-top: 6px;
+  color: var(--accent-text) !important;
+}
+.detail-metrics {
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+}
+@media (max-width: 1279px) {
+  .leaderboard .trend-col {
+    display: none;
+  }
+  .folder-scope-note {
+    display: none;
+  }
+}
+@media (max-width: 700px) {
+  .folder-list {
+    grid-template-columns: 1fr;
+  }
+  .folder-scope .select-shell {
+    max-width: 170px;
+  }
+  .folder-manager .new-folder-form .button {
+    font-size: 10px;
+  }
+}
+@media (max-width: 480px) {
+  .folder-toolbar {
+    gap: 8px;
+    margin-top: -4px;
+    margin-bottom: 17px;
+  }
+  .folder-scope {
+    gap: 7px;
+  }
+  .folder-scope select {
+    font-size: 10px;
+  }
+  .folder-scope .select-shell {
+    max-width: 175px;
+  }
+  .folder-manage-button {
+    font-size: 8px;
+    padding: 6px 0;
+    gap: 3px;
+  }
+  .new-folder-form {
+    gap: 7px;
+  }
+  .new-folder-form input {
+    padding: 9px;
+    font-size: 10px;
+  }
+  .folder-card {
+    padding: 10px;
+  }
+  .folder-members-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .empty-folder {
+    padding: 40px 20px;
+  }
+  .empty-folder h2 {
+    font-size: 21px;
+  }
+  .empty-folder p {
+    font-size: 11px;
+  }
+  .empty-folder > div {
+    flex-wrap: wrap;
+  }
+  .leaderboard .best-lap-col {
+    display: none;
+  }
+  .delta-time {
+    font-size: 10px;
+  }
+  .session-folder-field {
+    margin-top: 5px;
+  }
+}
 .combined-badge {
   color: var(--accent-text);
   background: var(--accent-surface);

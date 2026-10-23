@@ -1,6 +1,10 @@
 // A combined session is a snapshot of the original laps, with source IDs retained.
 // Flattening those IDs means combining overlapping groups never counts a lap twice.
-export function combineSessions(sessions, name = "Combined analysis") {
+export function combineSessions(
+  sessions,
+  name = "Combined analysis",
+  options = {},
+) {
   const sources = new Map();
   const karts = new Map();
 
@@ -40,13 +44,13 @@ export function combineSessions(sessions, name = "Combined analysis") {
       }
     }
   }
-  if (sources.size < 2)
+  if (sources.size < (options.minimumSources ?? 2))
     throw new Error(
       "Choose at least two different source sessions to combine.",
     );
   const sourceList = [...sources.values()];
   return {
-    id: globalThis.crypto.randomUUID(),
+    id: options.id || globalThis.crypto.randomUUID(),
     name: name.trim() || "Combined analysis",
     fileName: `${sources.size} Excel sessions`,
     importedAt: new Date().toISOString(),

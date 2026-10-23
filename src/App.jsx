@@ -13,6 +13,8 @@ import {
   CircleHelp,
   Clock3,
   FileSpreadsheet,
+  Folder,
+  FolderOpen,
   Flag,
   Gauge,
   Layers3,
@@ -29,10 +31,18 @@ import {
   X,
 } from "lucide-react";
 import sample from "./data/sample.json";
-import { formatTime, resultsCsv, summarizeSession } from "./lib/timing.js";
+import {
+  formatDelta,
+  formatTime,
+  resultsCsv,
+  summarizeSession,
+} from "./lib/timing.js";
 import { combineSessions } from "./lib/combineSessions.js";
+import { folderAnalysis, folderName, unfileFolder } from "./lib/folders.js";
+import FolderManager from "./FolderManager.jsx";
 
 const STORAGE_KEY = "kartlab.sessions.v1";
+const FOLDER_STORAGE_KEY = "kartlab.folders.v1";
 const COLORS = ["#b8df73", "#aa9aff", "#efb777", "#78c9d8"];
 
 function loadSessions() {
@@ -62,6 +72,27 @@ function loadSessions() {
     /* A fresh session also recovers from unavailable or invalid storage. */
   }
   return [sample];
+}
+
+function loadFolders() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(FOLDER_STORAGE_KEY));
+    if (
+      Array.isArray(stored) &&
+      stored.every(
+        (folder) =>
+          typeof folder.id === "string" &&
+          folder.id &&
+          typeof folder.name === "string" &&
+          folder.name.trim(),
+      ) &&
+      new Set(stored.map((folder) => folder.id)).size === stored.length
+    )
+      return stored;
+  } catch {
+    /* Existing sessions remain available if folder metadata cannot be read. */
+  }
+  return [];
 }
 
 function Brand({ small = false }) {
@@ -339,6 +370,14 @@ function UploadCard({ openFile, importFiles, busy, importProgress }) {
 
 export default function App() {
   const [sessions, setSessions] = useState(loadSessions);
+  const [folders, setFolders] = useState(loadFolders);
+  const [activeFolderId, setActiveFolderId] = useState(() => {
+    try {
+      return localStorage.getItem("kartlab.activeFolder") || null;
+    } catch {
+      return null;
+    }
+  });
   const [activeId, setActiveId] = useState(() => {
     try {
       return localStorage.getItem("kartlab.active") || loadSessions()[0].id;
@@ -360,7 +399,31 @@ export default function App() {
   const [combineError, setCombineError] = useState("");
   const [importProgress, setImportProgress] = useState("");
   const fileInput = useRef(null);
-  const session = sessions.find((s) => s.id === activeId) || sessions[0];
+  const activeFolder = folders.find((folder) => folder.id === activeFolderId);
+  const folderMembers = useMemo(
+    () =>
+      activeFolder
+        ? sessions.filter((s) => s.folderId === activeFolder.id)
+        : [],
+    [sessions, activeFolder],
+  );
+  const overall = useMemo(
+    () => (activeFolder ? folderAnalysis(activeFolder, sessions) : null),
+    [activeFolder, sessions],
+  );
+  const isFolderOverview = Boolean(
+    activeFolder &&
+      (activeId === `folder:${activeFolder.id}` ||
+        !folderMembers.some((s) => s.id === activeId)),
+  );
+  const hasData = !activeFolder || folderMembers.length > 0;
+  const session =
+    (isFolderOverview && overall) ||
+    (activeFolder
+      ? folderMembers.find((s) => s.id === activeId)
+      : sessions.find((s) => s.id === activeId)) ||
+    sessions[0];
+  const visibleSessions = activeFolder ? folderMembers : sessions;
   const stats = useMemo(() => summarizeSession(session), [session]);
   const chartKart =
     stats.karts.find((k) => k.number === chartNumber) || stats.karts[0];
@@ -389,6 +452,22 @@ export default function App() {
   }, [sessions]);
   useEffect(() => {
     try {
+      localStorage.setItem(FOLDER_STORAGE_KEY, JSON.stringify(folders));
+    } catch {
+      setError(
+        "Browser storage is unavailable. Folder changes may not be kept when you leave.",
+      );
+    }
+  }, [folders]);
+  useEffect(() => {
+    try {
+      localStorage.setItem("kartlab.activeFolder", activeFolder?.id || "");
+    } catch {
+      /* The current folder still works in memory. */
+    }
+  }, [activeFolder?.id]);
+  useEffect(() => {
+    try {
       localStorage.setItem("kartlab.active", session.id);
     } catch {
       /* Session is still usable in memory. */
@@ -406,6 +485,55 @@ export default function App() {
     setChartNumber(null);
     setDetailNumber(null);
   }
+  function chooseFolder(id) {
+    setActiveFolderId(id || null);
+    activate(
+      id
+        ? `folder:${id}`
+        : sessions.some((s) => s.id === activeId)
+          ? activeId
+          : sessions[0].id,
+    );
+    setModal(null);
+  }
+  function openSession(id) {
+    const selected = sessions.find((s) => s.id === id);
+    setActiveFolderId(
+      folders.some((folder) => folder.id === selected?.folderId)
+        ? selected.folderId
+        : null,
+    );
+    activate(id);
+    setModal(null);
+  }
+  function createFolder(value) {
+    const name = folderName(value, folders);
+    const id = globalThis.crypto.randomUUID();
+    setFolders((current) => [...current, { id, name }]);
+    return id;
+  }
+  function renameFolder(id, value) {
+    const name = folderName(value, folders, id);
+    setFolders((current) =>
+      current.map((folder) =>
+        folder.id === id ? { ...folder, name } : folder,
+      ),
+    );
+  }
+  function deleteFolder(id) {
+    setFolders((current) => current.filter((folder) => folder.id !== id));
+    setSessions((current) => unfileFolder(current, id));
+    if (activeFolderId === id) {
+      setActiveFolderId(null);
+      activate(sessions[0].id);
+    }
+    setNotice("Folder removed. All sessions have been kept.");
+  }
+  function moveSession(id, folderId) {
+    setSessions((current) =>
+      current.map((s) => (s.id === id ? { ...s, folderId } : s)),
+    );
+  }
   function openFile() {
     if (!busy) fileInput.current.click();
   }
@@ -413,6 +541,7 @@ export default function App() {
     if (busy) return;
     const files = Array.from(fileList);
     if (!files.length) return;
+    const destination = activeFolder;
     setBusy(true);
     setError("");
     try {
@@ -443,16 +572,22 @@ export default function App() {
         }
       }
       const active =
-        imported.length > 1
+        imported.length > 1 && !destination
           ? combineSessions(imported, `${imported.length} sessions combined`)
           : imported[0];
-      const added = imported.length > 1 ? [active, ...imported] : imported;
+      const added = destination
+        ? imported.map((s) => ({ ...s, folderId: destination.id }))
+        : imported.length > 1
+          ? [active, ...imported]
+          : imported;
       setSessions((current) => [...added, ...current]);
-      activate(active.id);
+      activate(destination ? `folder:${destination.id}` : active.id);
       setNotice(
-        imported.length > 1
-          ? `${imported.length} sessions combined. Original sessions are saved too.`
-          : `${active.karts.length} karts imported. Your lap analysis is ready.`,
+        destination
+          ? `${imported.length} ${imported.length === 1 ? "session" : "sessions"} added to ${destination.name}. Folder comparison updated.`
+          : imported.length > 1
+            ? `${imported.length} sessions combined. Original sessions are saved too.`
+            : `${active.karts.length} karts imported. Your lap analysis is ready.`,
       );
       setModal(null);
     } catch (e) {
@@ -484,7 +619,13 @@ export default function App() {
     setModal("compare");
   }
   function openCombine() {
-    setCombineIds(session.isSample ? [] : [session.id]);
+    setCombineIds(
+      isFolderOverview
+        ? folderMembers.map((s) => s.id)
+        : session.isSample
+          ? []
+          : [session.id],
+    );
     setCombineName("Combined analysis");
     setCombineError("");
     setModal("combine");
@@ -496,6 +637,7 @@ export default function App() {
         combineName,
       );
       setSessions((current) => [combined, ...current]);
+      setActiveFolderId(null);
       activate(combined.id);
       setModal(null);
       setNotice(
@@ -532,11 +674,20 @@ export default function App() {
             className={
               !modal || modal === "details" ? "nav-link active" : "nav-link"
             }
-            onClick={() => setModal(null)}
+            onClick={() =>
+              activeFolder ? chooseFolder(activeFolder.id) : setModal(null)
+            }
           >
             <LayoutDashboard size={18} />
             Overview
             <span className="active-dot" />
+          </button>
+          <button
+            className={`nav-link ${modal === "folders" ? "active" : ""}`}
+            onClick={() => setModal("folders")}
+          >
+            <Folder size={18} />
+            Folders<span className="nav-count">{folders.length}</span>
           </button>
           <button
             className={`nav-link ${modal === "sessions" ? "active" : ""}`}
@@ -548,6 +699,7 @@ export default function App() {
           <button
             className={`nav-link ${modal === "compare" ? "active" : ""}`}
             onClick={openCompare}
+            disabled={!hasData}
           >
             <BarChart3 size={18} />
             Compare karts
@@ -620,12 +772,21 @@ export default function App() {
                 <span className="tiny-line" /> THE LAP ANALYSIS WORKSPACE
               </div>
               <h1>
-                Know your karts<span>.</span>
+                {activeFolder ? activeFolder.name : "Know your karts"}
+                <span>.</span>
               </h1>
-              <p>Every lap, a little more clarity. Let’s find your fastest.</p>
+              <p>
+                {activeFolder
+                  ? "Your folder’s sessions, one overall kart comparison."
+                  : "Every lap, a little more clarity. Let’s find your fastest."}
+              </p>
             </div>
             <div className="heading-actions">
-              <button className="button secondary" onClick={exportResults}>
+              <button
+                className="button secondary"
+                onClick={exportResults}
+                disabled={!hasData}
+              >
                 <ArrowDownToLine size={16} />
                 Export results
               </button>
@@ -672,385 +833,492 @@ export default function App() {
               </button>
             </div>
           )}
-          <div className="session-strip">
-            <div className="session-identity">
-              <span className="session-icon">
-                <Flag size={17} />
-              </span>
-              <div className="session-select-wrap">
-                <label htmlFor="session-select">SESSION</label>
-                <div className="select-shell">
-                  <select
-                    id="session-select"
-                    value={session.id}
-                    onChange={(e) => activate(e.target.value)}
-                  >
-                    {sessions.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown size={14} />
-                </div>
+          <div className="folder-toolbar">
+            <div className="folder-scope">
+              <FolderOpen size={17} />
+              <label className="visually-hidden" htmlFor="folder-select">
+                View folder
+              </label>
+              <div className="select-shell">
+                <select
+                  id="folder-select"
+                  value={activeFolder?.id || ""}
+                  onChange={(e) => chooseFolder(e.target.value)}
+                >
+                  <option value="">All sessions</option>
+                  {folders.map((folder) => (
+                    <option key={folder.id} value={folder.id}>
+                      {folder.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={14} />
               </div>
-              <span
-                className={`badge ${session.isCombined ? "combined-badge" : session.isSample ? "sample-badge" : "imported-badge"}`}
-              >
-                {session.isCombined
-                  ? `${session.sources.length} sessions combined`
-                  : session.isSample
-                    ? "Sample session"
-                    : "Imported session"}
+              <span className="folder-scope-note">
+                {activeFolder
+                  ? `${folderMembers.length} ${folderMembers.length === 1 ? "session" : "sessions"} · uploads go into this folder`
+                  : "Organise sessions. Compare every kart."}
               </span>
             </div>
-            <div className="session-source">
-              <FileSpreadsheet size={15} />
-              <span>{session.fileName}</span>
-              <span className="divider-dot">·</span>
-              <CheckCheck size={15} />
-              <span>All valid laps included</span>
-            </div>
+            <button
+              className="text-button folder-manage-button"
+              onClick={() => setModal("folders")}
+            >
+              <Plus size={15} />
+              {folders.length ? "Manage folders" : "New folder"}
+            </button>
           </div>
-          {session.isCombined && (
-            <details className="combined-sources">
-              <summary>
-                <Layers3 size={14} />
-                {session.sources.length} source sessions · one leaderboard
-                <ChevronDown size={13} />
-              </summary>
-              <div className="source-list">
-                {session.sources.map((source) => (
-                  <div key={source.id}>
-                    <FileSpreadsheet size={15} />
-                    <span>
-                      <strong>{source.name}</strong>
-                      <small>
-                        {source.fileName}
-                        {source.isSample ? " · Sample" : ""}
-                      </small>
-                    </span>
-                    <span>{source.lapCount} laps</span>
-                  </div>
-                ))}
-              </div>
+          {!hasData ? (
+            <section className="empty-folder panel">
+              <span className="empty-folder-icon">
+                <FolderOpen size={35} />
+              </span>
+              <h2>Give this folder some track time.</h2>
               <p>
-                All valid laps are pooled by kart number. Each source session
-                counts once.
+                Add saved sessions or upload Excel files to {activeFolder.name}.
+                Its overall kart comparison will appear here and update
+                automatically.
               </p>
-            </details>
-          )}
-          {(session.skipped > 0 ||
-            (session.sheets > 1 && !session.isCombined)) && (
-            <div className="import-note">
-              <CircleHelp size={13} />
-              {session.skipped > 0 && (
-                <span>
-                  {session.skipped} blank or invalid lap entries skipped.
-                </span>
-              )}
-              {session.sheets > 1 && !session.isCombined && (
-                <span>
-                  Matching kart numbers combined across {session.sheets}{" "}
-                  worksheets.
-                </span>
-              )}
-            </div>
-          )}
-          <div className="metrics-grid">
-            <Metric
-              label="Karts on track"
-              icon={<Gauge size={18} />}
-              value={String(stats.karts.length).padStart(2, "0")}
-              footer="Just kart numbers. No driver names."
-            />
-            <Metric
-              label="Laps recorded"
-              icon={<Flag size={18} />}
-              value={stats.totalLaps.toLocaleString()}
-              footer={`${Math.min(...stats.karts.map((k) => k.count)) === Math.max(...stats.karts.map((k) => k.count)) ? `${stats.karts[0].count} laps per kart` : "Across all imported karts"}`}
-            />
-            <Metric
-              label={
-                session.isCombined ? "Combined average" : "Session average"
-              }
-              icon={<Clock3 size={18} />}
-              value={formatTime(stats.average)}
-              footer="Average of every valid recorded lap"
-              time
-            />
-            <Metric
-              label="Fastest lap"
-              icon={<Timer size={18} />}
-              value={formatTime(stats.fastest.best)}
-              footer={
-                <>
-                  <span className="mini-kart">#{stats.fastest.number}</span> The
-                  session’s quickest lap
-                </>
-              }
-              time
-              highlight
-            />
-          </div>
-          <div className="content-grid">
-            <section className="leaderboard panel">
-              <div className="panel-heading">
-                <div>
-                  <div className="section-title">
-                    <h2>Kart leaderboard</h2>
-                    <span className="count-pill">
-                      {stats.karts.length} karts
-                    </span>
-                  </div>
-                  <p>A clearer picture, ranked by average lap time.</p>
-                </div>
-                <span className="heading-icon">
-                  <Trophy size={19} />
-                </span>
+              <div>
+                <button
+                  className="button secondary"
+                  onClick={() => setModal("folders")}
+                >
+                  <Folder size={16} />
+                  Choose saved sessions
+                </button>
+                <button
+                  className="button primary"
+                  onClick={openFile}
+                  disabled={busy}
+                >
+                  <Plus size={17} />
+                  Upload to folder
+                </button>
               </div>
-              <div className="table-toolbar">
-                <div className="search-field">
-                  <Search size={16} />
-                  <input
-                    aria-label="Search kart number"
-                    placeholder="Search kart number…"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                  />
-                  {query && (
-                    <button
-                      aria-label="Clear search"
-                      className="clear-search"
-                      onClick={() => setQuery("")}
-                    >
-                      <X size={14} />
-                    </button>
+            </section>
+          ) : (
+            <>
+              <div className="session-strip">
+                <div className="session-identity">
+                  <span className="session-icon">
+                    <Flag size={17} />
+                  </span>
+                  <div className="session-select-wrap">
+                    <label htmlFor="session-select">SESSION</label>
+                    <div className="select-shell">
+                      <select
+                        id="session-select"
+                        value={session.id}
+                        onChange={(e) => activate(e.target.value)}
+                      >
+                        {activeFolder && (
+                          <option value={`folder:${activeFolder.id}`}>
+                            Overall folder comparison
+                          </option>
+                        )}
+                        {visibleSessions.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown size={14} />
+                    </div>
+                  </div>
+                  <span
+                    className={`badge ${session.isCombined ? "combined-badge" : session.isSample ? "sample-badge" : "imported-badge"}`}
+                  >
+                    {session.isFolder
+                      ? "Folder overview"
+                      : session.isCombined
+                        ? `${session.sources.length} sessions combined`
+                        : session.isSample
+                          ? "Sample session"
+                          : "Imported session"}
+                  </span>
+                </div>
+                <div className="session-source">
+                  <FileSpreadsheet size={15} />
+                  <span>{session.fileName}</span>
+                  <span className="divider-dot">·</span>
+                  <CheckCheck size={15} />
+                  <span>All valid laps included</span>
+                </div>
+              </div>
+              {session.isCombined && (
+                <details className="combined-sources">
+                  <summary>
+                    <Layers3 size={14} />
+                    {session.sources.length} source{" "}
+                    {session.sources.length === 1 ? "session" : "sessions"} ·
+                    one leaderboard
+                    <ChevronDown size={13} />
+                  </summary>
+                  <div className="source-list">
+                    {session.sources.map((source) => (
+                      <div key={source.id}>
+                        <FileSpreadsheet size={15} />
+                        <span>
+                          <strong>{source.name}</strong>
+                          <small>
+                            {source.fileName}
+                            {source.isSample ? " · Sample" : ""}
+                          </small>
+                        </span>
+                        <span>{source.lapCount} laps</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p>
+                    All valid laps are pooled by kart number. Each source
+                    session counts once.
+                  </p>
+                </details>
+              )}
+              {(session.skipped > 0 ||
+                (session.sheets > 1 && !session.isCombined)) && (
+                <div className="import-note">
+                  <CircleHelp size={13} />
+                  {session.skipped > 0 && (
+                    <span>
+                      {session.skipped} blank or invalid lap entries skipped.
+                    </span>
+                  )}
+                  {session.sheets > 1 && !session.isCombined && (
+                    <span>
+                      Matching kart numbers combined across {session.sheets}{" "}
+                      worksheets.
+                    </span>
                   )}
                 </div>
-                <div className="sort-control">
-                  <span>Sort by</span>
-                  <select
-                    aria-label="Sort leaderboard"
-                    value={sort}
-                    onChange={(e) => setSort(e.target.value)}
-                  >
-                    <option value="average">Average time</option>
-                    <option value="best">Best lap</option>
-                    <option value="number">Kart number</option>
-                    <option value="laps">Lap count</option>
-                  </select>
-                  <ChevronDown size={12} />
-                </div>
+              )}
+              <div className="metrics-grid">
+                <Metric
+                  label="Karts on track"
+                  icon={<Gauge size={18} />}
+                  value={String(stats.karts.length).padStart(2, "0")}
+                  footer="Just kart numbers. No driver names."
+                />
+                <Metric
+                  label="Laps recorded"
+                  icon={<Flag size={18} />}
+                  value={stats.totalLaps.toLocaleString()}
+                  footer={`${Math.min(...stats.karts.map((k) => k.count)) === Math.max(...stats.karts.map((k) => k.count)) ? `${stats.karts[0].count} laps per kart` : "Across all imported karts"}`}
+                />
+                <Metric
+                  label={
+                    session.isFolder
+                      ? "Folder average"
+                      : session.isCombined
+                        ? "Combined average"
+                        : "Session average"
+                  }
+                  icon={<Clock3 size={18} />}
+                  value={formatTime(stats.average)}
+                  footer="Average of every valid recorded lap"
+                  time
+                />
+                <Metric
+                  label="Fastest lap"
+                  icon={<Timer size={18} />}
+                  value={formatTime(stats.fastest.best)}
+                  footer={
+                    <>
+                      <span className="mini-kart">#{stats.fastest.number}</span>{" "}
+                      The
+                      {session.isFolder ? "folder’s" : "session’s"} quickest lap
+                    </>
+                  }
+                  time
+                  highlight
+                />
               </div>
-              <div className="table-scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      <th className="rank-cell">POS</th>
-                      <th>KART</th>
-                      <th className="numeric avg-heading">
-                        AVG. LAP <ArrowDown size={12} />
-                      </th>
-                      <th className="numeric">BEST LAP</th>
-                      <th className="numeric laps-col">LAPS</th>
-                      <th className="trend-col">LAP TREND</th>
-                      <th className="arrow-cell">
-                        <span className="visually-hidden">Details</span>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.map((k) => {
-                      const rank =
-                        stats.karts.findIndex((s) => s.number === k.number) + 1;
-                      return (
-                        <tr
+              <div className="content-grid">
+                <section className="leaderboard panel">
+                  <div className="panel-heading">
+                    <div>
+                      <div className="section-title">
+                        <h2>
+                          {session.isFolder
+                            ? "Overall kart comparison"
+                            : "Kart leaderboard"}
+                        </h2>
+                        <span className="count-pill">
+                          {stats.karts.length} karts
+                        </span>
+                      </div>
+                      <p>
+                        {session.isFolder
+                          ? "All folder laps, ranked by average. Delta is the gap to the fastest average."
+                          : "Ranked by average lap time. Delta is the gap to the fastest average."}
+                      </p>
+                    </div>
+                    <span className="heading-icon">
+                      <Trophy size={19} />
+                    </span>
+                  </div>
+                  <div className="table-toolbar">
+                    <div className="search-field">
+                      <Search size={16} />
+                      <input
+                        aria-label="Search kart number"
+                        placeholder="Search kart number…"
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                      />
+                      {query && (
+                        <button
+                          aria-label="Clear search"
+                          className="clear-search"
+                          onClick={() => setQuery("")}
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="sort-control">
+                      <span>Sort by</span>
+                      <select
+                        aria-label="Sort leaderboard"
+                        value={sort}
+                        onChange={(e) => setSort(e.target.value)}
+                      >
+                        <option value="average">Average time</option>
+                        <option value="best">Best lap</option>
+                        <option value="number">Kart number</option>
+                        <option value="laps">Lap count</option>
+                      </select>
+                      <ChevronDown size={12} />
+                    </div>
+                  </div>
+                  <div className="table-scroll">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th className="rank-cell">POS</th>
+                          <th>KART</th>
+                          <th className="numeric avg-heading">
+                            AVG. LAP <ArrowDown size={12} />
+                          </th>
+                          <th
+                            className="numeric delta-heading"
+                            title="Average lap time minus the fastest kart’s average"
+                          >
+                            Δ TO FASTEST
+                          </th>
+                          <th className="numeric best-lap-col">BEST LAP</th>
+                          <th className="numeric laps-col">LAPS</th>
+                          <th className="trend-col">LAP TREND</th>
+                          <th className="arrow-cell">
+                            <span className="visually-hidden">Details</span>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filtered.map((k) => {
+                          const rank =
+                            stats.karts.findIndex(
+                              (s) => s.number === k.number,
+                            ) + 1;
+                          return (
+                            <tr
+                              key={k.number}
+                              className={rank === 1 ? "winner-row" : ""}
+                              onClick={() => {
+                                setDetailNumber(k.number);
+                                setModal("details");
+                              }}
+                            >
+                              <td className="rank-cell">
+                                <span
+                                  className={`rank ${rank === 1 ? "first" : ""}`}
+                                >
+                                  {rank === 1 ? (
+                                    <Trophy size={13} />
+                                  ) : (
+                                    String(rank).padStart(2, "0")
+                                  )}
+                                </span>
+                              </td>
+                              <td>
+                                <button
+                                  className="kart-button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDetailNumber(k.number);
+                                    setModal("details");
+                                  }}
+                                >
+                                  <span className="kart-number">
+                                    {k.number.padStart(2, "0")}
+                                  </span>
+                                  <span className="kart-label">
+                                    Kart {k.number}
+                                  </span>
+                                </button>
+                              </td>
+                              <td className="numeric average-time">
+                                {formatTime(k.average)}
+                              </td>
+                              <td
+                                className={`numeric delta-time ${k.delta === 0 ? "fastest-delta" : ""}`}
+                              >
+                                {formatDelta(k.delta)}
+                              </td>
+                              <td className="numeric best-time best-lap-col">
+                                {formatTime(k.best)}
+                              </td>
+                              <td className="numeric laps-col lap-count">
+                                {k.count}
+                              </td>
+                              <td className="trend-col">
+                                <Sparkline laps={k.laps} winner={rank === 1} />
+                              </td>
+                              <td className="arrow-cell">
+                                <ChevronRight size={15} />
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                    {!filtered.length && (
+                      <div className="empty-search">
+                        <Search size={25} />
+                        <h3>No karts found</h3>
+                        <p>Try another kart number.</p>
+                        <button
+                          className="text-button"
+                          onClick={() => setQuery("")}
+                        >
+                          Clear search
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="table-footer">
+                    <span>
+                      <span className="status-dot" />
+                      {filtered.length} of {stats.karts.length} karts shown
+                    </span>
+                    <span>
+                      Times in min:sec.ms <span className="footer-dot">·</span>{" "}
+                      Lower is faster
+                    </span>
+                  </div>
+                </section>
+                <aside className="insights-column">
+                  <UploadCard
+                    openFile={openFile}
+                    importFiles={importFiles}
+                    busy={busy}
+                    importProgress={importProgress}
+                  />
+                  <section className="pace-card panel">
+                    <div className="section-title">
+                      <span className="pace-icon">
+                        <Activity size={16} />
+                      </span>
+                      <h2>Setting the pace</h2>
+                      <span className="live-dot" />
+                    </div>
+                    <p>Top 5 by average lap time</p>
+                    <div className="pace-bars">
+                      {stats.karts.slice(0, 5).map((k, i) => (
+                        <button
                           key={k.number}
-                          className={rank === 1 ? "winner-row" : ""}
+                          className="pace-row"
                           onClick={() => {
                             setDetailNumber(k.number);
                             setModal("details");
                           }}
                         >
-                          <td className="rank-cell">
+                          <span className="pace-label">#{k.number}</span>
+                          <span className="pace-track">
                             <span
-                              className={`rank ${rank === 1 ? "first" : ""}`}
-                            >
-                              {rank === 1 ? (
-                                <Trophy size={13} />
-                              ) : (
-                                String(rank).padStart(2, "0")
-                              )}
-                            </span>
-                          </td>
-                          <td>
-                            <button
-                              className="kart-button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDetailNumber(k.number);
-                                setModal("details");
+                              style={{
+                                width: `${94 - ((k.average - fastestAverage.average) / (stats.karts[Math.min(4, stats.karts.length - 1)].average - fastestAverage.average || 1)) * 40}%`,
                               }}
-                            >
-                              <span className="kart-number">
-                                {k.number.padStart(2, "0")}
-                              </span>
-                              <span className="kart-label">
-                                Kart {k.number}
-                              </span>
-                            </button>
-                          </td>
-                          <td className="numeric average-time">
+                              className={
+                                i === 0 ? "pace-fill leader" : "pace-fill"
+                              }
+                            />
+                          </span>
+                          <span className="pace-time">
                             {formatTime(k.average)}
-                          </td>
-                          <td className="numeric best-time">
-                            {formatTime(k.best)}
-                          </td>
-                          <td className="numeric laps-col lap-count">
-                            {k.count}
-                          </td>
-                          <td className="trend-col">
-                            <Sparkline laps={k.laps} winner={rank === 1} />
-                          </td>
-                          <td className="arrow-cell">
-                            <ChevronRight size={15} />
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-                {!filtered.length && (
-                  <div className="empty-search">
-                    <Search size={25} />
-                    <h3>No karts found</h3>
-                    <p>Try another kart number.</p>
-                    <button
-                      className="text-button"
-                      onClick={() => setQuery("")}
-                    >
-                      Clear search
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="pace-insight">
+                      <Trophy size={16} />
+                      <p>
+                        <strong>Kart {fastestAverage.number}</strong>
+                        {stats.karts.length > 1 ? (
+                          <>
+                            {" "}
+                            leads by <strong>{gap.toFixed(3)}s</strong>
+                            <br />
+                            on average. That’s the benchmark.
+                          </>
+                        ) : (
+                          <> sets the session benchmark.</>
+                        )}
+                      </p>
+                    </div>
+                  </section>
+                </aside>
+              </div>
+              <section className="lap-panel panel">
+                <div className="panel-heading">
+                  <div>
+                    <div className="section-title">
+                      <h2>The lap-by-lap picture</h2>
+                      <span className="subtle-label">CONSISTENCY IS KEY</span>
+                    </div>
+                    <p>Find the rhythm behind the result.</p>
+                  </div>
+                  <div className="chart-controls">
+                    <span className="chart-legend">
+                      <i />
+                      Kart {chartKart.number}
+                    </span>
+                    <div className="small-select">
+                      <select
+                        aria-label="Kart for lap chart"
+                        value={chartKart.number}
+                        onChange={(e) => setChartNumber(e.target.value)}
+                      >
+                        {stats.karts.map((k) => (
+                          <option key={k.number} value={k.number}>
+                            Kart {k.number}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown size={13} />
+                    </div>
+                    <button className="compare-button" onClick={openCompare}>
+                      Compare
+                      <ArrowUpRight size={14} />
                     </button>
                   </div>
-                )}
-              </div>
-              <div className="table-footer">
-                <span>
-                  <span className="status-dot" />
-                  {filtered.length} of {stats.karts.length} karts shown
-                </span>
-                <span>
-                  Times in min:sec.ms <span className="footer-dot">·</span>{" "}
-                  Lower is faster
-                </span>
-              </div>
-            </section>
-            <aside className="insights-column">
-              <UploadCard
-                openFile={openFile}
-                importFiles={importFiles}
-                busy={busy}
-                importProgress={importProgress}
-              />
-              <section className="pace-card panel">
-                <div className="section-title">
-                  <span className="pace-icon">
-                    <Activity size={16} />
+                </div>
+                <LapChart karts={[chartKart]} compact />
+                <div className="chart-footer">
+                  <span>
+                    <span className="axis-label">X</span> Recorded lap
                   </span>
-                  <h2>Setting the pace</h2>
-                  <span className="live-dot" />
-                </div>
-                <p>Top 5 by average lap time</p>
-                <div className="pace-bars">
-                  {stats.karts.slice(0, 5).map((k, i) => (
-                    <button
-                      key={k.number}
-                      className="pace-row"
-                      onClick={() => {
-                        setDetailNumber(k.number);
-                        setModal("details");
-                      }}
-                    >
-                      <span className="pace-label">#{k.number}</span>
-                      <span className="pace-track">
-                        <span
-                          style={{
-                            width: `${94 - ((k.average - fastestAverage.average) / (stats.karts[Math.min(4, stats.karts.length - 1)].average - fastestAverage.average || 1)) * 40}%`,
-                          }}
-                          className={i === 0 ? "pace-fill leader" : "pace-fill"}
-                        />
-                      </span>
-                      <span className="pace-time">{formatTime(k.average)}</span>
-                    </button>
-                  ))}
-                </div>
-                <div className="pace-insight">
-                  <Trophy size={16} />
-                  <p>
-                    <strong>Kart {fastestAverage.number}</strong>
-                    {stats.karts.length > 1 ? (
-                      <>
-                        {" "}
-                        leads by <strong>{gap.toFixed(3)}s</strong>
-                        <br />
-                        on average. That’s the benchmark.
-                      </>
-                    ) : (
-                      <> sets the session benchmark.</>
-                    )}
-                  </p>
+                  <span>
+                    <span className="axis-label">Y</span> Lap time in seconds
+                  </span>
+                  <span className="chart-footer-right">
+                    <Check size={13} /> All {chartKart.count} laps included
+                  </span>
                 </div>
               </section>
-            </aside>
-          </div>
-          <section className="lap-panel panel">
-            <div className="panel-heading">
-              <div>
-                <div className="section-title">
-                  <h2>The lap-by-lap picture</h2>
-                  <span className="subtle-label">CONSISTENCY IS KEY</span>
-                </div>
-                <p>Find the rhythm behind the result.</p>
-              </div>
-              <div className="chart-controls">
-                <span className="chart-legend">
-                  <i />
-                  Kart {chartKart.number}
-                </span>
-                <div className="small-select">
-                  <select
-                    aria-label="Kart for lap chart"
-                    value={chartKart.number}
-                    onChange={(e) => setChartNumber(e.target.value)}
-                  >
-                    {stats.karts.map((k) => (
-                      <option key={k.number} value={k.number}>
-                        Kart {k.number}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown size={13} />
-                </div>
-                <button className="compare-button" onClick={openCompare}>
-                  Compare
-                  <ArrowUpRight size={14} />
-                </button>
-              </div>
-            </div>
-            <LapChart karts={[chartKart]} compact />
-            <div className="chart-footer">
-              <span>
-                <span className="axis-label">X</span> Recorded lap
-              </span>
-              <span>
-                <span className="axis-label">Y</span> Lap time in seconds
-              </span>
-              <span className="chart-footer-right">
-                <Check size={13} /> All {chartKart.count} laps included
-              </span>
-            </div>
-          </section>
+            </>
+          )}
           <footer className="page-footer">
             <span>
               <Flag size={13} />
@@ -1082,16 +1350,29 @@ export default function App() {
           close={() => setModal(null)}
         >
           <nav className="mobile-navigation" aria-label="Mobile navigation">
-            <button className="nav-link" onClick={() => setModal(null)}>
+            <button
+              className="nav-link"
+              onClick={() =>
+                activeFolder ? chooseFolder(activeFolder.id) : setModal(null)
+              }
+            >
               <LayoutDashboard size={18} />
               Overview
               <ChevronRight size={15} />
+            </button>
+            <button className="nav-link" onClick={() => setModal("folders")}>
+              <Folder size={18} />
+              Folders<span className="nav-count">{folders.length}</span>
             </button>
             <button className="nav-link" onClick={() => setModal("sessions")}>
               <Layers3 size={18} />
               Sessions<span className="nav-count">{sessions.length}</span>
             </button>
-            <button className="nav-link" onClick={openCompare}>
+            <button
+              className="nav-link"
+              onClick={openCompare}
+              disabled={!hasData}
+            >
               <BarChart3 size={18} />
               Compare karts
               <ChevronRight size={15} />
@@ -1102,6 +1383,26 @@ export default function App() {
               <ChevronRight size={15} />
             </button>
           </nav>
+        </Modal>
+      )}
+      {modal === "folders" && (
+        <Modal
+          title="A home for every session."
+          eyebrow="FOLDERS"
+          close={() => setModal(null)}
+          wide
+        >
+          <FolderManager
+            folders={folders}
+            sessions={sessions}
+            activeFolderId={activeFolder?.id}
+            onCreate={createFolder}
+            onRename={renameFolder}
+            onDelete={deleteFolder}
+            onMove={moveSession}
+            onOpen={chooseFolder}
+            busy={busy}
+          />
         </Modal>
       )}
       {modal === "help" && (
@@ -1125,7 +1426,14 @@ export default function App() {
             <HelpStep n="03" title="See the whole picture">
               Every valid lap counts toward the average, including the first lap
               and slower laps. Blank, zero and invalid times are skipped.
-              Rankings use average time; lower is faster.
+              Rankings use average time; lower is faster. Delta is the gap to
+              the fastest average in the current session or folder.
+            </HelpStep>
+            <HelpStep n="04" title="Give your sessions a folder">
+              Create a folder, then choose saved sessions or upload files into
+              it. Open its overall comparison to see every kart across those
+              sessions. Averages update automatically, and shared source
+              sessions count once.
             </HelpStep>
           </div>
           <div className="help-example">
@@ -1215,13 +1523,34 @@ export default function App() {
                         </span>
                       )}
                     </p>
+                    <div className="session-folder-field">
+                      <Folder size={12} />
+                      <select
+                        aria-label={`Folder for ${s.name}`}
+                        value={
+                          folders.some((folder) => folder.id === s.folderId)
+                            ? s.folderId
+                            : ""
+                        }
+                        onChange={(e) =>
+                          moveSession(s.id, e.target.value || null)
+                        }
+                      >
+                        <option value="">Unfiled</option>
+                        {folders.map((folder) => (
+                          <option key={folder.id} value={folder.id}>
+                            {folder.name}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown size={11} />
+                    </div>
                   </div>
                   <button
                     className="session-open"
                     aria-label={`Open ${s.name}`}
                     onClick={() => {
-                      activate(s.id);
-                      setModal(null);
+                      openSession(s.id);
                     }}
                   >
                     {s.id === session.id ? (
@@ -1379,6 +1708,12 @@ export default function App() {
                 <small>s</small>
               </strong>
             </div>
+            <div>
+              <span>Gap to fastest average</span>
+              <strong className={detailKart.delta === 0 ? "green-text" : ""}>
+                {formatDelta(detailKart.delta)}
+              </strong>
+            </div>
           </div>
           <LapChart karts={[detailKart]} />
           <div className="detail-table-wrap">
@@ -1481,6 +1816,9 @@ export default function App() {
                       </span>
                       <strong>{formatTime(k.average)}</strong>
                       <small>Average · {k.count} laps</small>
+                      <small className="comparison-delta">
+                        Δ {formatDelta(k.delta)} to fastest average
+                      </small>
                     </div>
                   );
                 })}

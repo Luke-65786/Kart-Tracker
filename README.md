@@ -41,6 +41,18 @@ Upload an unprotected `.xlsx` workbook up to 10 MB. Each timing table needs a `L
 
 Search and sort kart rankings, inspect individual laps, compare up to four karts, rename or remove saved sessions, and export summary CSV files. The layout supports phones and desktop browsers.
 
+### Folders and overall kart comparisons
+
+Use **New folder** or **Folders** to create a named folder. Choose its saved sessions using the checkboxes, or move an individual session using the folder selector in **Sessions**. A session belongs to one folder at a time. Select a folder in the main folder picker before uploading to put new Excel files directly into it.
+
+Each folder opens an **Overall folder comparison** that pools the raw laps by kart number and updates as files are added, moved, or removed. A folder works with a single file as well as multiple files. Its session picker also lets you inspect individual sessions. Overlapping combined analyses count each original source once. Multi-file uploads inside a folder keep the individual files there; the folder supplies their live combined comparison.
+
+Folders can be renamed or deleted. Deleting a folder keeps all its sessions in **All sessions**. Existing saved sessions remain available after upgrading, and folder membership is retained in this browser.
+
+### Delta to the fastest kart
+
+The **Δ TO FASTEST** column shows each kart’s average lap time minus the fastest kart’s average in the current session or folder. The leader shows `0.000s`; a kart averaging half a second slower shows `+0.500s`. Ties show zero. Searching or sorting does not change the benchmark. The same gap is available in kart details, comparison summaries, and the CSV export’s **Gap to fastest average (seconds)** column.
+
 ### Combine sessions
 
 Select multiple files using **Upload sessions**, or drag several files onto the upload card. Upload up to 20 files at a time, each up to 10 MB. The app opens a combined analysis and keeps each original session saved separately. If any file cannot be imported, the entire batch is left unimported and existing sessions stay unchanged.
@@ -64,4 +76,4 @@ Browser tests use Playwright. Install its Chromium once with `npx playwright ins
 CHROMIUM_PATH=/usr/bin/chromium npm run test:e2e
 ```
 
-One additional browser test is enabled by setting `SAMPLE_XLSX` to the original supplied workbook’s path. That workbook is not committed because it contains driver names. Without the variable, nine browser tests execute and the external-workbook test is explicitly skipped. A generated workbook regression test covers the namespace-prefixed XML used by the timing exporter. Session tests cover weighted averages, overlapping combinations, source provenance, batch failures, persistence, exports, and dark mode with a light operating-system theme.
+One additional browser test is enabled by setting `SAMPLE_XLSX` to the original supplied workbook’s path. That workbook is not committed because it contains driver names. Without the variable, twelve browser tests execute and the external-workbook test is explicitly skipped. A generated workbook regression test covers the namespace-prefixed XML used by the timing exporter. Session and folder tests cover weighted averages, overlapping combinations, source provenance, batch failures, persistence, folder creation and movement, safe deletion, deltas, exports, and dark mode with a light operating-system theme.
