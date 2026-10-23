@@ -6,22 +6,7 @@
   font-weight: 400;
   -webkit-font-smoothing: antialiased;
   font-smooth: always;
-  --lime: #d3f66b;
-  --green: #b8df73;
-  --muted: #91a0af;
-  --border: #2c3540;
   --heading: "Space Grotesk", sans-serif;
-  --bg: #101419;
-  --surface: #171d24;
-  --surface-raised: #202830;
-  --surface-hover: #252e38;
-  --text: #edf2f7;
-  --text-secondary: #c0cbd6;
-  --accent-text: #c4eb80;
-  --accent-surface: #242f1c;
-  --accent-border: #3e512b;
-  --chart-grid: #303a45;
-  color-scheme: dark;
 }
 * {
   box-sizing: border-box;
@@ -48,7 +33,7 @@ button:disabled {
 button:focus-visible,
 input:focus-visible,
 select:focus-visible {
-  outline: 3px solid var(--lime);
+  outline: 3px solid var(--accent-text);
   outline-offset: 3px;
 }
 button {
@@ -116,7 +101,7 @@ option {
   background: var(--lime);
   border-radius: 10px;
   transform: rotate(-5deg);
-  color: #263219;
+  color: var(--on-accent);
 }
 .brand-symbol svg {
   transform: rotate(5deg);
@@ -190,7 +175,7 @@ nav {
 .sidebar-note {
   position: relative;
   border: 1px solid var(--border);
-  background: linear-gradient(135deg, #222d20, #19221b);
+  background: linear-gradient(135deg, var(--accent-surface), var(--surface));
   border-radius: 9px;
   padding: 21px 18px;
   margin: 44px 4px 20px;
@@ -403,11 +388,11 @@ main {
 }
 .button.primary {
   background: var(--lime);
-  color: #263219;
+  color: var(--on-accent);
   box-shadow: 0 3px 16px #00000020;
 }
 .button.primary:hover {
-  background: #c2e660;
+  background: var(--accent-hover);
   box-shadow: 0 3px 16px #00000020;
 }
 .button.secondary {
@@ -420,10 +405,10 @@ main {
 }
 .button.dark {
   background: var(--lime);
-  color: #263219;
+  color: var(--on-accent);
 }
 .button.dark:hover {
-  background: #c2e660;
+  background: var(--accent-hover);
 }
 .button.full {
   width: 100%;
@@ -501,8 +486,8 @@ main {
   white-space: nowrap;
 }
 .sample-badge {
-  background: #302c23;
-  color: #d3c293;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
   border-color: var(--border);
 }
 .imported-badge {
@@ -579,7 +564,7 @@ main {
   white-space: nowrap;
 }
 .metric-card.highlight {
-  background: linear-gradient(135deg, #222d20, #19221b);
+  background: linear-gradient(135deg, var(--accent-surface), var(--surface));
   border-color: var(--accent-border);
 }
 .highlight .metric-label > span {
@@ -691,8 +676,8 @@ main {
   color: var(--muted);
 }
 .search-field:focus-within {
-  border-color: var(--lime);
-  box-shadow: 0 0 0 2px #a6ca6b30;
+  border-color: var(--accent-text);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-text) 20%, transparent);
 }
 .search-field input:focus-visible {
   outline: none;
@@ -889,7 +874,7 @@ td {
   gap: 18px;
 }
 .upload-card {
-  background: linear-gradient(150deg, #252f20, #1c251d);
+  background: linear-gradient(150deg, var(--accent-surface), var(--surface));
   border: 1px solid var(--accent-border);
   border-radius: 9px;
   text-align: center;
@@ -901,9 +886,9 @@ td {
     border-color 0.15s;
 }
 .upload-card.dragging {
-  background: #324625;
-  border-color: var(--lime);
-  outline: 3px solid var(--lime);
+  background: var(--accent-surface);
+  border-color: var(--accent-text);
+  outline: 3px solid var(--accent-text);
   outline-offset: 2px;
 }
 .section-kicker {
@@ -986,7 +971,7 @@ td {
   z-index: 2;
   bottom: 12px;
   left: calc(50% + 14px);
-  color: #263219;
+  color: var(--on-accent);
 }
 .upload-card h2 {
   font-size: 19px;
@@ -1064,7 +1049,7 @@ td {
   width: 100%;
 }
 .pace-row:hover .pace-fill {
-  background: #6b854d;
+  background: var(--accent-border);
 }
 .pace-label {
   width: 21px;
@@ -1082,7 +1067,7 @@ td {
 .pace-fill {
   display: block;
   height: 7px;
-  background: #6b854d;
+  background: var(--accent-border);
   border-radius: 2px;
   transition: background 0.15s;
 }
@@ -1266,9 +1251,9 @@ td {
   display: flex;
   gap: 10px;
   align-items: center;
-  background: #36251f;
-  color: #f0b39d;
-  border: 1px solid #654233;
+  background: var(--danger-surface);
+  color: var(--danger-text);
+  border: 1px solid var(--danger-border);
   font-size: 11px;
   line-height: 1.6;
   border-radius: 7px;
@@ -1369,7 +1354,7 @@ td {
   background: var(--surface);
 }
 .modal::backdrop {
-  background: #05090dcc;
+  background: var(--overlay);
   backdrop-filter: blur(5px);
 }
 .modal.wide {
@@ -1537,8 +1522,8 @@ td {
   color: var(--accent-text);
 }
 .delete-button:hover {
-  background: #36251f;
-  color: #f0b39d;
+  background: var(--danger-surface);
+  color: var(--danger-text);
 }
 .modal-footnote {
   font-size: 9px;
@@ -3530,7 +3515,7 @@ td {
   background: var(--accent-surface);
 }
 .combine-option:hover {
-  border-color: #778a58;
+  border-color: var(--accent-text);
 }
 .combine-option > input {
   width: 17px;
@@ -3567,7 +3552,7 @@ td {
   margin-top: 10px;
 }
 .combine-error {
-  color: #f0b39d;
+  color: var(--danger-text);
   font-size: 11px;
   line-height: 1.7;
   margin-bottom: 14px;

@@ -23,6 +23,7 @@ import {
   Menu,
   Plus,
   Search,
+  Settings,
   ShieldCheck,
   Timer,
   Trash2,
@@ -40,10 +41,21 @@ import { combineSessions } from "./lib/combineSessions.js";
 import { folderAnalysis, folderName, unfileFolder } from "./lib/folders.js";
 import FolderManager from "./FolderManager.jsx";
 import { restoreSessions } from "./lib/savedSessions.js";
+import SettingsPanel from "./SettingsPanel.jsx";
+import {
+  applyPreferences,
+  loadPreferences,
+  PREFERENCES_KEY,
+} from "./lib/preferences.js";
 
 const STORAGE_KEY = "kartlab.sessions.v1";
 const FOLDER_STORAGE_KEY = "kartlab.folders.v1";
-const COLORS = ["#b8df73", "#aa9aff", "#efb777", "#78c9d8"];
+const COLORS = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+];
 
 function loadSessions() {
   try {
@@ -142,7 +154,7 @@ function Sparkline({ laps, winner }) {
       <polyline
         points={points}
         fill="none"
-        stroke={winner ? "#b8df73" : "#7f92a5"}
+        stroke={winner ? COLORS[0] : "var(--muted)"}
         strokeWidth="1.6"
         strokeLinejoin="round"
         strokeLinecap="round"
@@ -256,8 +268,8 @@ function LapChart({ karts, compact = false }) {
         ))}
         <defs>
           <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#b8df73" stopOpacity="0.18" />
-            <stop offset="100%" stopColor="#b8df73" stopOpacity="0.01" />
+            <stop offset="0%" stopColor={COLORS[0]} stopOpacity="0.18" />
+            <stop offset="100%" stopColor={COLORS[0]} stopOpacity="0.01" />
           </linearGradient>
         </defs>
         {hovered !== null && (
@@ -266,7 +278,7 @@ function LapChart({ karts, compact = false }) {
             x2={x(hovered)}
             y1={pad.top}
             y2={height - pad.bottom}
-            stroke="#a0ac94"
+            stroke="var(--muted)"
             strokeDasharray="3 4"
           />
         )}
@@ -349,6 +361,7 @@ function UploadCard({ openFile, importFiles, busy, importProgress }) {
 }
 
 export default function App() {
+  const [preferences, setPreferences] = useState(loadPreferences);
   const [sessions, setSessions] = useState(loadSessions);
   const [folders, setFolders] = useState(loadFolders);
   const [activeFolderId, setActiveFolderId] = useState(() => {
@@ -368,7 +381,7 @@ export default function App() {
     }
   });
   const [query, setQuery] = useState("");
-  const [sort, setSort] = useState("average");
+  const [sort, setSort] = useState(preferences.defaultSort);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -423,6 +436,17 @@ export default function App() {
     );
   }, [stats, query, sort]);
 
+  useEffect(() => {
+    applyPreferences(preferences);
+    try {
+      localStorage.setItem(PREFERENCES_KEY, JSON.stringify(preferences));
+    } catch {
+      /* Display settings still apply for this visit. */
+    }
+  }, [preferences]);
+  useEffect(() => {
+    setSort(preferences.defaultSort);
+  }, [preferences.defaultSort]);
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
@@ -706,6 +730,14 @@ export default function App() {
           <span className="note-track" />
         </div>
         <div className="sidebar-bottom">
+          <button
+            className={`nav-link ${modal === "settings" ? "active" : ""}`}
+            aria-label="Settings"
+            onClick={() => setModal("settings")}
+          >
+            <Settings size={18} />
+            Settings
+          </button>
           <button className="nav-link" onClick={() => setModal("help")}>
             <CircleHelp size={18} />
             How it works
@@ -736,6 +768,14 @@ export default function App() {
               <ShieldCheck size={13} />
               PRIVATE BY DESIGN
             </span>
+            <button
+              className="icon-button"
+              aria-label="Open settings"
+              title="Settings"
+              onClick={() => setModal("settings")}
+            >
+              <Settings size={18} />
+            </button>
             <span className="avatar">
               K<span className="avatar-dot" />
             </span>
@@ -1367,12 +1407,31 @@ export default function App() {
               Compare karts
               <ChevronRight size={15} />
             </button>
+            <button className="nav-link" onClick={() => setModal("settings")}>
+              <Settings size={18} />
+              Settings
+              <ChevronRight size={15} />
+            </button>
             <button className="nav-link" onClick={() => setModal("help")}>
               <CircleHelp size={18} />
               How it works
               <ChevronRight size={15} />
             </button>
           </nav>
+        </Modal>
+      )}
+      {modal === "settings" && (
+        <Modal
+          title="Your workspace, your way."
+          eyebrow="SETTINGS"
+          close={() => setModal(null)}
+          wide
+        >
+          <SettingsPanel
+            preferences={preferences}
+            onChange={setPreferences}
+            onClose={() => setModal(null)}
+          />
         </Modal>
       )}
       {modal === "folders" && (

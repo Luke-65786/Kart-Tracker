@@ -9,6 +9,11 @@ import "@fontsource/space-grotesk/latin-600.css";
 import "@fontsource/space-grotesk/latin-700.css";
 import App from "./App.jsx";
 import "./styles.css";
+import "./themes.css";
+import "./settings.css";
+import { applyPreferences, loadPreferences } from "./lib/preferences.js";
+
+applyPreferences(loadPreferences());
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>

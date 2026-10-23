@@ -1,6 +1,6 @@
 # Kartlab
 
-A kart lap-time tracker built with React and Vite, with a permanent dark theme. Upload Excel lap sheets, keep the kart numbers, and compare average times without importing driver names. New workspaces start empty, with no preloaded sessions or kart data.
+A kart lap-time tracker built with React and Vite, with five themes and adjustable display settings. Upload Excel lap sheets, keep the kart numbers, and compare average times without importing driver names. New workspaces start empty, with no preloaded sessions or kart data.
 
 ## Run locally
 
@@ -41,6 +41,12 @@ Upload an unprotected `.xlsx` workbook up to 10 MB. Each timing table needs a `L
 
 Search and sort kart rankings, inspect individual laps, compare up to four karts, rename or remove saved sessions, and export summary CSV files. The layout supports phones and desktop browsers.
 
+### Settings and themes
+
+Open **Settings** in the sidebar, the top bar’s gear button, or the mobile menu. Choose **Kartlab** (dark with deep blue accents), **Light** (white with light blue accents), **Apex** (charcoal and lime), **Violet** (midnight and purple), or **Ember** (warm graphite and amber). Kartlab is the default, independently of the operating system’s theme.
+
+Settings also include UI scale from 80% to 125%, comfortable or compact table spacing, desktop lap trend visibility, a default leaderboard sort order, and reduced motion. Changes apply immediately and persist in this browser under `kartlab.preferences.v1`. The operating system’s reduced motion preference is always respected. **Reset settings** restores display defaults while keeping all sessions and folders.
+
 ### Folders and overall kart comparisons
 
 Use **New folder** or **Folders** to create a named folder. Choose its saved sessions using the checkboxes, or move an individual session using the folder selector in **Sessions**. A session belongs to one folder at a time. Select a folder in the main folder picker before uploading to put new Excel files directly into it.
@@ -78,4 +84,4 @@ Browser tests use Playwright. Install its Chromium once with `npx playwright ins
 CHROMIUM_PATH=/usr/bin/chromium npm run test:e2e
 ```
 
-One additional browser test is enabled by setting `SAMPLE_XLSX` to the original supplied workbook’s path. That workbook is not committed because it contains driver names. Without the variable, sixteen browser tests execute and the external-workbook test is explicitly skipped. A generated workbook regression test covers the namespace-prefixed XML used by the timing exporter. Session and folder tests cover weighted averages, overlapping combinations, source provenance, batch failures, persistence, folder creation and movement, safe deletion, deltas, exports, empty starts, legacy sample cleanup, and dark mode with a light operating-system theme.
+One additional browser test is enabled by setting `SAMPLE_XLSX` to the original supplied workbook’s path. That workbook is not committed because it contains driver names. Without the variable, the external-workbook test is explicitly skipped. A generated workbook regression test covers the namespace-prefixed XML used by the timing exporter. Session and folder tests cover weighted averages, overlapping combinations, source provenance, batch failures, persistence, folder creation and movement, safe deletion, deltas, exports, empty starts, legacy sample cleanup, theme and display preference persistence, UI scaling on desktop and mobile, and a dark default with a light operating-system theme.

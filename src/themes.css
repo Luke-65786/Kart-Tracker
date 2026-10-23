@@ -1,0 +1,164 @@
+/* Shared semantic colours keep controls, charts, and dialogs in the same theme. */
+:root,
+[data-preview-theme] {
+  --accent: #2855b8;
+  --accent-hover: #3265d4;
+  --on-accent: #ffffff;
+  --muted: #91a0af;
+  --border: #2c3540;
+  --bg: #101419;
+  --surface: #171d24;
+  --surface-raised: #202830;
+  --surface-hover: #252e38;
+  --text: #edf2f7;
+  --text-secondary: #c0cbd6;
+  --accent-text: #a7c8ff;
+  --accent-surface: #192a46;
+  --accent-border: #365582;
+  --chart-grid: #303a45;
+  --chart-1: #82b0ff;
+  --chart-2: #c0a5ff;
+  --chart-3: #efb777;
+  --chart-4: #78c9d8;
+  --danger-surface: #36251f;
+  --danger-text: #f0b39d;
+  --danger-border: #654233;
+  --overlay: #05090dcc;
+  color-scheme: dark;
+}
+:root {
+  --lime: var(--accent);
+  --green: var(--chart-1);
+  --ui-scale: 1;
+  zoom: var(--ui-scale);
+}
+:root[data-theme="light"],
+[data-preview-theme="light"] {
+  --accent: #b2ddff;
+  --accent-hover: #91cfff;
+  --on-accent: #13395c;
+  --muted: #5a6d80;
+  --border: #d5e1eb;
+  --bg: #f3f7fb;
+  --surface: #ffffff;
+  --surface-raised: #edf4fa;
+  --surface-hover: #e5eff8;
+  --text: #172b3e;
+  --text-secondary: #40576b;
+  --accent-text: #215f91;
+  --accent-surface: #e5f3ff;
+  --accent-border: #9ac5e8;
+  --chart-grid: #d8e4ef;
+  --chart-1: #216fbb;
+  --chart-2: #8054bd;
+  --chart-3: #a66016;
+  --chart-4: #127b83;
+  --danger-surface: #fff0e9;
+  --danger-text: #a33d25;
+  --danger-border: #eab9a9;
+  --overlay: #1a304e66;
+  color-scheme: light;
+}
+:root[data-theme="apex"],
+[data-preview-theme="apex"] {
+  --accent: #d3f66b;
+  --accent-hover: #c2e660;
+  --on-accent: #263219;
+  --accent-text: #c4eb80;
+  --accent-surface: #242f1c;
+  --accent-border: #506b34;
+  --chart-1: #b8df73;
+}
+:root[data-theme="violet"],
+[data-preview-theme="violet"] {
+  --accent: #b7a0f7;
+  --accent-hover: #c6b4ff;
+  --on-accent: #241640;
+  --bg: #14121d;
+  --surface: #1e1a2b;
+  --surface-raised: #2a243b;
+  --surface-hover: #322b45;
+  --text: #f1edf9;
+  --text-secondary: #d0c5e2;
+  --muted: #aaa0be;
+  --border: #3a314c;
+  --accent-text: #cdb9ff;
+  --accent-surface: #302344;
+  --accent-border: #69518e;
+  --chart-grid: #3a314c;
+  --chart-1: #bda4ff;
+  --chart-2: #7bd2d0;
+  --chart-3: #f1b786;
+  --chart-4: #f09cbd;
+}
+:root[data-theme="ember"],
+[data-preview-theme="ember"] {
+  --accent: #f3b46e;
+  --accent-hover: #ffc58a;
+  --on-accent: #392515;
+  --bg: #191512;
+  --surface: #231e19;
+  --surface-raised: #302820;
+  --surface-hover: #3a3027;
+  --text: #f8f0e7;
+  --text-secondary: #d8c9bb;
+  --muted: #b4a393;
+  --border: #44372b;
+  --accent-text: #f3be84;
+  --accent-surface: #38291c;
+  --accent-border: #86603b;
+  --chart-grid: #44372b;
+  --chart-1: #f3b46e;
+  --chart-2: #9abff0;
+  --chart-3: #c7a2ed;
+  --chart-4: #8accb3;
+}
+
+/* Viewport units do not account for CSS zoom. Keep the workspace and native
+   dialogs within the visible viewport at every supported UI scale. */
+.app-shell {
+  min-height: calc(100dvh / var(--ui-scale));
+}
+.modal {
+  max-width: calc(100vw / var(--ui-scale) - 30px);
+  max-height: calc(88dvh / var(--ui-scale));
+}
+.table-scroll {
+  position: relative;
+}
+.metric-card {
+  min-width: 0;
+  container-type: inline-size;
+}
+.metric-card .time-value {
+  font-size: clamp(14px, 21cqw, 34px);
+  flex-wrap: wrap;
+}
+.metric-footer {
+  white-space: normal;
+  line-height: 1.5;
+}
+@media (max-width: 700px) {
+  .content-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .metrics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+:root[data-density="compact"] .leaderboard tbody tr {
+  height: 38px;
+}
+:root[data-density="compact"] .detail-table td {
+  padding-block: 7px;
+}
+:root[data-trends="hide"] .leaderboard .trend-col {
+  display: none;
+}
+:root[data-reduce-motion="true"] *,
+:root[data-reduce-motion="true"] *::before,
+:root[data-reduce-motion="true"] *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
