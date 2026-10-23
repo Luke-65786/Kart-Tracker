@@ -46,8 +46,8 @@ export function summarizeKart(kart) {
     ...kart,
     count: times.length,
     average,
-    best: Math.min(...times),
-    worst: Math.max(...times),
+    best: times.reduce((best, time) => Math.min(best, time), Infinity),
+    worst: times.reduce((worst, time) => Math.max(worst, time), -Infinity),
     deviation: Math.sqrt(
       times.reduce((sum, t) => sum + (t - average) ** 2, 0) / times.length,
     ),

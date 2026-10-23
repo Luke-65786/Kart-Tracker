@@ -30,9 +30,10 @@ import {
 } from "lucide-react";
 import sample from "./data/sample.json";
 import { formatTime, resultsCsv, summarizeSession } from "./lib/timing.js";
+import { combineSessions } from "./lib/combineSessions.js";
 
 const STORAGE_KEY = "kartlab.sessions.v1";
-const COLORS = ["#7da832", "#7a6be2", "#e19a4c", "#4a9eae"];
+const COLORS = ["#b8df73", "#aa9aff", "#efb777", "#78c9d8"];
 
 function loadSessions() {
   try {
@@ -112,8 +113,8 @@ function Modal({ children, title, eyebrow, close, wide = false }) {
 
 function Sparkline({ laps, winner }) {
   const times = laps.map((l) => l.seconds);
-  const min = Math.min(...times),
-    max = Math.max(...times);
+  const min = times.reduce((a, b) => Math.min(a, b), Infinity),
+    max = times.reduce((a, b) => Math.max(a, b), -Infinity);
   const points = times
     .map(
       (t, i) =>
@@ -130,7 +131,7 @@ function Sparkline({ laps, winner }) {
       <polyline
         points={points}
         fill="none"
-        stroke={winner ? "#739d31" : "#b6bdc8"}
+        stroke={winner ? "#b8df73" : "#7f92a5"}
         strokeWidth="1.6"
         strokeLinejoin="round"
         strokeLinecap="round"
@@ -146,8 +147,10 @@ function LapChart({ karts, compact = false }) {
     pad = { left: 52, right: 20, top: 20, bottom: 35 };
   const times = karts.flatMap((k) => k.laps.map((l) => l.seconds));
   if (!times.length) return null;
-  const low = Math.floor(Math.min(...times) * 2) / 2 - 0.5;
-  const high = Math.ceil(Math.max(...times) * 2) / 2 + 0.5;
+  const low =
+    Math.floor(times.reduce((a, b) => Math.min(a, b), Infinity) * 2) / 2 - 0.5;
+  const high =
+    Math.ceil(times.reduce((a, b) => Math.max(a, b), -Infinity) * 2) / 2 + 0.5;
   const maxLength = Math.max(...karts.map((k) => k.laps.length));
   const x = (i) =>
     pad.left +
@@ -190,7 +193,7 @@ function LapChart({ karts, compact = false }) {
                 x2={width - pad.right}
                 y1={y(t)}
                 y2={y(t)}
-                stroke="#e9ecef"
+                stroke="var(--chart-grid)"
                 strokeDasharray="4 5"
               />
               <text x={pad.left - 12} y={y(t) + 4} textAnchor="end">
@@ -233,7 +236,7 @@ function LapChart({ karts, compact = false }) {
                 cx={x(hovered)}
                 cy={y(k.laps[hovered].seconds)}
                 r="5"
-                stroke="white"
+                stroke="var(--surface)"
                 strokeWidth="2"
                 fill={COLORS[index]}
               />
@@ -242,8 +245,8 @@ function LapChart({ karts, compact = false }) {
         ))}
         <defs>
           <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#d9edb2" stopOpacity="0.5" />
-            <stop offset="100%" stopColor="#d9edb2" stopOpacity="0.05" />
+            <stop offset="0%" stopColor="#b8df73" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="#b8df73" stopOpacity="0.01" />
           </linearGradient>
         </defs>
         {hovered !== null && (
@@ -279,7 +282,7 @@ function LapChart({ karts, compact = false }) {
   );
 }
 
-function UploadCard({ openFile, importFile, busy }) {
+function UploadCard({ openFile, importFiles, busy, importProgress }) {
   const [dragging, setDragging] = useState(false);
   return (
     <section
@@ -292,8 +295,8 @@ function UploadCard({ openFile, importFile, busy }) {
       onDrop={(e) => {
         e.preventDefault();
         setDragging(false);
-        if (!busy && e.dataTransfer.files[0])
-          importFile(e.dataTransfer.files[0]);
+        if (!busy && e.dataTransfer.files.length)
+          importFiles(e.dataTransfer.files);
       }}
     >
       <div className="section-kicker">
@@ -321,10 +324,10 @@ function UploadCard({ openFile, importFile, busy }) {
         ) : (
           <Plus size={17} />
         )}
-        {busy ? "Reading lap times…" : "Upload an Excel sheet"}
+        {busy ? importProgress : "Upload Excel sheets"}
       </button>
       <span className="upload-hint">
-        or drag & drop here · .xlsx up to 10 MB
+        Select several to combine · up to 10 MB each
       </span>
       <div className="upload-privacy">
         <ShieldCheck size={14} />
@@ -352,6 +355,10 @@ export default function App() {
   const [detailNumber, setDetailNumber] = useState(null);
   const [chartNumber, setChartNumber] = useState(null);
   const [compareNumbers, setCompareNumbers] = useState([]);
+  const [combineIds, setCombineIds] = useState([]);
+  const [combineName, setCombineName] = useState("Combined analysis");
+  const [combineError, setCombineError] = useState("");
+  const [importProgress, setImportProgress] = useState("");
   const fileInput = useRef(null);
   const session = sessions.find((s) => s.id === activeId) || sessions[0];
   const stats = useMemo(() => summarizeSession(session), [session]);
@@ -402,31 +409,50 @@ export default function App() {
   function openFile() {
     if (!busy) fileInput.current.click();
   }
-  async function importFile(file) {
-    if (!/\.xlsx$/i.test(file.name)) {
-      setError(
-        "Please choose an Excel .xlsx file. Other file types are not supported.",
-      );
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      setError(
-        "This file is larger than 10 MB. Please upload a smaller workbook.",
-      );
-      return;
-    }
+  async function importFiles(fileList) {
+    if (busy) return;
+    const files = Array.from(fileList);
+    if (!files.length) return;
     setBusy(true);
     setError("");
     try {
+      if (files.length > 20)
+        throw new Error("Please upload up to 20 Excel sheets at a time.");
+      for (const file of files) {
+        if (!/\.xlsx$/i.test(file.name))
+          throw new Error(
+            "Please choose an Excel .xlsx file. Other file types are not supported.",
+          );
+        if (file.size > 10 * 1024 * 1024)
+          throw new Error(
+            `${file.name} is larger than 10 MB. Please upload a smaller workbook.`,
+          );
+      }
       const { importWorkbook } = await import("./lib/importWorkbook.js");
-      const imported = await importWorkbook(
-        await file.arrayBuffer(),
-        file.name,
-      );
-      setSessions((current) => [imported, ...current]);
-      activate(imported.id);
+      const imported = [];
+      for (const [index, file] of files.entries()) {
+        setImportProgress(`Reading ${index + 1} of ${files.length}…`);
+        try {
+          imported.push(
+            await importWorkbook(await file.arrayBuffer(), file.name),
+          );
+        } catch (e) {
+          throw new Error(
+            `${file.name}: ${e.message} No sessions from this upload were added.`,
+          );
+        }
+      }
+      const active =
+        imported.length > 1
+          ? combineSessions(imported, `${imported.length} sessions combined`)
+          : imported[0];
+      const added = imported.length > 1 ? [active, ...imported] : imported;
+      setSessions((current) => [...added, ...current]);
+      activate(active.id);
       setNotice(
-        `${imported.karts.length} karts imported. Your lap analysis is ready.`,
+        imported.length > 1
+          ? `${imported.length} sessions combined. Original sessions are saved too.`
+          : `${active.karts.length} karts imported. Your lap analysis is ready.`,
       );
       setModal(null);
     } catch (e) {
@@ -434,8 +460,10 @@ export default function App() {
         e.message ||
           "Something went wrong reading your workbook. Please try again.",
       );
+      setModal(null);
     } finally {
       setBusy(false);
+      setImportProgress("");
       if (fileInput.current) fileInput.current.value = "";
     }
   }
@@ -454,6 +482,28 @@ export default function App() {
   function openCompare() {
     setCompareNumbers(stats.karts.slice(0, 3).map((k) => k.number));
     setModal("compare");
+  }
+  function openCombine() {
+    setCombineIds(session.isSample ? [] : [session.id]);
+    setCombineName("Combined analysis");
+    setCombineError("");
+    setModal("combine");
+  }
+  function saveCombined() {
+    try {
+      const combined = combineSessions(
+        sessions.filter((s) => combineIds.includes(s.id)),
+        combineName,
+      );
+      setSessions((current) => [combined, ...current]);
+      activate(combined.id);
+      setModal(null);
+      setNotice(
+        `${combined.sources.length} source sessions combined. Every valid lap counts.`,
+      );
+    } catch (e) {
+      setCombineError(e.message);
+    }
   }
   function removeSession(id) {
     if (
@@ -579,6 +629,10 @@ export default function App() {
                 <ArrowDownToLine size={16} />
                 Export results
               </button>
+              <button className="button secondary" onClick={openCombine}>
+                <Layers3 size={16} />
+                Combine sessions
+              </button>
               <button
                 className="button primary"
                 onClick={openFile}
@@ -589,7 +643,7 @@ export default function App() {
                 ) : (
                   <Plus size={18} />
                 )}
-                Upload session
+                Upload sessions
               </button>
             </div>
           </div>
@@ -597,11 +651,12 @@ export default function App() {
             ref={fileInput}
             id="excel-upload"
             type="file"
+            multiple
             accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             className="visually-hidden"
             aria-label="Upload Excel lap times"
             onChange={(e) => {
-              if (e.target.files[0]) importFile(e.target.files[0]);
+              if (e.target.files.length) importFiles(e.target.files);
             }}
           />
           {error && (
@@ -640,9 +695,13 @@ export default function App() {
                 </div>
               </div>
               <span
-                className={`badge ${session.isSample ? "sample-badge" : "imported-badge"}`}
+                className={`badge ${session.isCombined ? "combined-badge" : session.isSample ? "sample-badge" : "imported-badge"}`}
               >
-                {session.isSample ? "Sample session" : "Imported session"}
+                {session.isCombined
+                  ? `${session.sources.length} sessions combined`
+                  : session.isSample
+                    ? "Sample session"
+                    : "Imported session"}
               </span>
             </div>
             <div className="session-source">
@@ -653,7 +712,36 @@ export default function App() {
               <span>All valid laps included</span>
             </div>
           </div>
-          {(session.skipped > 0 || session.sheets > 1) && (
+          {session.isCombined && (
+            <details className="combined-sources">
+              <summary>
+                <Layers3 size={14} />
+                {session.sources.length} source sessions · one leaderboard
+                <ChevronDown size={13} />
+              </summary>
+              <div className="source-list">
+                {session.sources.map((source) => (
+                  <div key={source.id}>
+                    <FileSpreadsheet size={15} />
+                    <span>
+                      <strong>{source.name}</strong>
+                      <small>
+                        {source.fileName}
+                        {source.isSample ? " · Sample" : ""}
+                      </small>
+                    </span>
+                    <span>{source.lapCount} laps</span>
+                  </div>
+                ))}
+              </div>
+              <p>
+                All valid laps are pooled by kart number. Each source session
+                counts once.
+              </p>
+            </details>
+          )}
+          {(session.skipped > 0 ||
+            (session.sheets > 1 && !session.isCombined)) && (
             <div className="import-note">
               <CircleHelp size={13} />
               {session.skipped > 0 && (
@@ -661,7 +749,7 @@ export default function App() {
                   {session.skipped} blank or invalid lap entries skipped.
                 </span>
               )}
-              {session.sheets > 1 && (
+              {session.sheets > 1 && !session.isCombined && (
                 <span>
                   Matching kart numbers combined across {session.sheets}{" "}
                   worksheets.
@@ -683,7 +771,9 @@ export default function App() {
               footer={`${Math.min(...stats.karts.map((k) => k.count)) === Math.max(...stats.karts.map((k) => k.count)) ? `${stats.karts[0].count} laps per kart` : "Across all imported karts"}`}
             />
             <Metric
-              label="Session average"
+              label={
+                session.isCombined ? "Combined average" : "Session average"
+              }
               icon={<Clock3 size={18} />}
               value={formatTime(stats.average)}
               footer="Average of every valid recorded lap"
@@ -859,8 +949,9 @@ export default function App() {
             <aside className="insights-column">
               <UploadCard
                 openFile={openFile}
-                importFile={importFile}
+                importFiles={importFiles}
                 busy={busy}
+                importProgress={importProgress}
               />
               <section className="pace-card panel">
                 <div className="section-title">
@@ -1020,10 +1111,12 @@ export default function App() {
           close={() => setModal(null)}
         >
           <div className="help-steps">
-            <HelpStep n="01" title="Bring your Excel sheet">
-              Upload an .xlsx file with a “Lap” column and kart headings, like
-              “2 - Driver name”. Decimal seconds, Excel time cells and m:ss.mmm
-              times are supported.
+            <HelpStep n="01" title="Bring your Excel sheets">
+              Upload one or more .xlsx files with a “Lap” column and kart
+              headings, like “2 - Driver name”. Decimal seconds, Excel time
+              cells and m:ss.mmm times are supported. Select several files to
+              combine them into one analysis while keeping each original session
+              saved.
             </HelpStep>
             <HelpStep n="02" title="Keep the kart. Skip the name.">
               We read the number at the start of each kart heading. Driver names
@@ -1077,7 +1170,7 @@ export default function App() {
         >
           <p className="modal-description">
             Saved in this browser. Pick a session to explore, or give it a new
-            name.
+            name. Combine sessions to analyse their laps together.
           </p>
           <div className="session-list">
             {sessions.map((s) => {
@@ -1116,6 +1209,11 @@ export default function App() {
                       {s.isSample && (
                         <span className="sample-text">Sample</span>
                       )}
+                      {s.isCombined && (
+                        <span className="sample-text">
+                          {s.sources.length} combined
+                        </span>
+                      )}
                     </p>
                   </div>
                   <button
@@ -1144,16 +1242,111 @@ export default function App() {
             })}
           </div>
           <button
+            className="button secondary full session-combine-button"
+            onClick={openCombine}
+          >
+            <Layers3 size={17} />
+            Combine saved sessions
+          </button>
+          <button
             className="button primary full"
             onClick={openFile}
             disabled={busy}
           >
             <Plus size={17} />
-            {busy ? "Reading workbook…" : "Upload another session"}
+            {busy ? importProgress : "Upload more sessions"}
           </button>
           <p className="modal-footnote">
             Removing your last session brings back the sample so you can keep
             exploring.
+          </p>
+        </Modal>
+      )}
+      {modal === "combine" && (
+        <Modal
+          title="Stronger together."
+          eyebrow="COMBINE SESSIONS"
+          close={() => setModal(null)}
+        >
+          <p className="modal-description">
+            Choose sessions to pool their laps by kart number. Averages use
+            every valid lap, so longer sessions carry their fair share.
+          </p>
+          <label className="combine-name-label" htmlFor="combine-name">
+            Analysis name
+          </label>
+          <input
+            id="combine-name"
+            className="combine-name-input"
+            maxLength={80}
+            value={combineName}
+            onChange={(e) => setCombineName(e.target.value)}
+          />
+          <div className="combine-options">
+            {sessions.map((s) => {
+              const info = summarizeSession(s);
+              return (
+                <label
+                  className={`combine-option ${combineIds.includes(s.id) ? "checked" : ""}`}
+                  key={s.id}
+                >
+                  <input
+                    type="checkbox"
+                    aria-label={`Include ${s.name}`}
+                    checked={combineIds.includes(s.id)}
+                    onChange={(e) => {
+                      setCombineError("");
+                      setCombineIds((current) =>
+                        e.target.checked
+                          ? [...current, s.id]
+                          : current.filter((id) => id !== s.id),
+                      );
+                    }}
+                  />
+                  <span className="combine-option-info">
+                    <strong>{s.name}</strong>
+                    <small>
+                      {info.karts.length} karts · {info.totalLaps} laps
+                      {s.isSample
+                        ? " · Sample"
+                        : s.isCombined
+                          ? ` · ${s.sources.length} sessions combined`
+                          : ""}
+                    </small>
+                  </span>
+                  {s.isCombined ? (
+                    <Layers3 size={17} />
+                  ) : (
+                    <FileSpreadsheet size={17} />
+                  )}
+                </label>
+              );
+            })}
+          </div>
+          {combineError && (
+            <p className="combine-error" role="alert">
+              {combineError}
+            </p>
+          )}
+          <button
+            className="button primary full"
+            onClick={saveCombined}
+            disabled={combineIds.length < 2}
+          >
+            <Layers3 size={17} />
+            Combine {combineIds.length} selected sessions
+          </button>
+          <button
+            className="text-button combine-upload-button"
+            onClick={openFile}
+            disabled={busy}
+          >
+            <Plus size={15} />
+            Upload more Excel sheets
+          </button>
+          <p className="modal-footnote">
+            Original sessions stay saved. If groups overlap, each source session
+            counts only once. Sample data is included only when you select it.
           </p>
         </Modal>
       )}
@@ -1195,6 +1388,7 @@ export default function App() {
                   <th>LAP</th>
                   <th>TIME</th>
                   <th>VS. AVERAGE</th>
+                  {session.isCombined && <th>SESSION</th>}
                   {session.sheets > 1 && <th>SHEET</th>}
                 </tr>
               </thead>
@@ -1220,6 +1414,7 @@ export default function App() {
                       {l.seconds >= detailKart.average ? "+" : "−"}
                       {Math.abs(l.seconds - detailKart.average).toFixed(3)}s
                     </td>
+                    {session.isCombined && <td>{l.sourceName}</td>}
                     {session.sheets > 1 && <td>{l.sheet}</td>}
                   </tr>
                 ))}
@@ -1291,8 +1486,11 @@ export default function App() {
                 })}
               </div>
               <p className="modal-footnote">
-                Aligned by recorded lap order. All worksheets in the uploaded
-                session are included.
+                Aligned by recorded lap order. All valid laps from{" "}
+                {session.isCombined
+                  ? `all ${session.sources.length} source sessions`
+                  : "the uploaded session"}{" "}
+                are included.
               </p>
             </>
           ) : (
