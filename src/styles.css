@@ -3683,3 +3683,35 @@ td {
   overflow-wrap: anywhere;
   line-height: 1.5;
 }
+
+.temporary-analysis-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  padding: 11px 14px;
+  margin: -8px 0 18px;
+  border: 1px solid var(--accent-border);
+  border-radius: 7px;
+  background: var(--accent-surface);
+  color: var(--accent-text);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.temporary-analysis-note > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.temporary-analysis-note .text-button {
+  font-size: 11px;
+  padding: 4px 0;
+  white-space: nowrap;
+}
+@media (max-width: 480px) {
+  .temporary-analysis-note {
+    font-size: 10px;
+    padding: 10px 12px;
+  }
+}

@@ -56,6 +56,7 @@ export function combineSessions(
     importedAt: new Date().toISOString(),
     isSample: false,
     isCombined: true,
+    isTemporary: options.temporary === true,
     sources: sourceList,
     karts: [...karts.values()],
     skipped: sourceList.reduce((sum, source) => sum + source.skipped, 0),

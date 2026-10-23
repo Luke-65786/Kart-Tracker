@@ -371,6 +371,7 @@ function UploadCard({ openFile, importFiles, busy, importProgress }) {
 export default function App() {
   const [preferences, setPreferences] = useState(loadPreferences);
   const [sessions, setSessions] = useState(loadSessions);
+  const [temporaryAnalysis, setTemporaryAnalysis] = useState(null);
   const [folders, setFolders] = useState(loadFolders);
   const [activeFolderId, setActiveFolderId] = useState(() => {
     try {
@@ -417,14 +418,24 @@ export default function App() {
       (activeId === `folder:${activeFolder.id}` ||
         !folderMembers.some((s) => s.id === activeId)),
   );
-  const hasData = activeFolder ? folderMembers.length > 0 : sessions.length > 0;
+  const availableSessions = temporaryAnalysis
+    ? [temporaryAnalysis, ...sessions]
+    : sessions;
+  const isTemporaryActive = !activeFolder && temporaryAnalysis?.id === activeId;
+  const hasData = activeFolder
+    ? folderMembers.length > 0
+    : sessions.length > 0 || isTemporaryActive;
   const session =
+    (isTemporaryActive && temporaryAnalysis) ||
     (isFolderOverview && overall) ||
     (activeFolder
       ? folderMembers.find((s) => s.id === activeId)
       : sessions.find((s) => s.id === activeId)) ||
     sessions[0];
-  const visibleSessions = activeFolder ? folderMembers : sessions;
+  const visibleSessions = activeFolder ? folderMembers : availableSessions;
+  const persistedActiveId = session?.isTemporary
+    ? sessions[0]?.id
+    : session?.id;
   const stats = useMemo(() => summarizeSession(session), [session]);
   const chartKart =
     stats.karts.find((k) => k.number === chartNumber) || stats.karts[0];
@@ -455,7 +466,10 @@ export default function App() {
   }, [preferences.defaultSort]);
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(sessions.filter((s) => !s.isTemporary)),
+      );
     } catch {
       setError(
         "Browser storage is full or unavailable. This session works now, but may not be saved when you leave. Export your results to keep them.",
@@ -480,12 +494,13 @@ export default function App() {
   }, [activeFolder?.id]);
   useEffect(() => {
     try {
-      if (session) localStorage.setItem("kartlab.active", session.id);
+      if (persistedActiveId)
+        localStorage.setItem("kartlab.active", persistedActiveId);
       else localStorage.removeItem("kartlab.active");
     } catch {
       /* Session is still usable in memory. */
     }
-  }, [session?.id]);
+  }, [persistedActiveId]);
   useEffect(() => {
     if (!notice) return;
     const timeout = setTimeout(() => setNotice(""), 5500);
@@ -503,9 +518,9 @@ export default function App() {
     activate(
       id
         ? `folder:${id}`
-        : sessions.some((s) => s.id === activeId)
+        : availableSessions.some((s) => s.id === activeId)
           ? activeId
-          : sessions[0]?.id || null,
+          : availableSessions[0]?.id || null,
     );
     setModal(null);
   }
@@ -588,23 +603,24 @@ export default function App() {
       }
       const active =
         imported.length > 1 && !destination
-          ? combineSessions(imported, `${imported.length} sessions combined`)
+          ? combineSessions(imported, `${imported.length} sessions combined`, {
+              temporary: true,
+            })
           : imported[0];
       const added = destination
         ? imported.map((s) => withFolderMembership(s, destination.id, true))
-        : imported.length > 1
-          ? [active, ...imported]
-          : imported;
+        : imported;
       setSessions((current) => [
         ...added.map(normalizeSessionFolders),
         ...current,
       ]);
+      if (active.isTemporary) setTemporaryAnalysis(active);
       activate(destination ? `folder:${destination.id}` : active.id);
       setNotice(
         destination
           ? `${imported.length} ${imported.length === 1 ? "session" : "sessions"} added to ${destination.name}. Folder comparison updated.`
           : imported.length > 1
-            ? `${imported.length} sessions combined. Original sessions are saved too.`
+            ? `${imported.length} sessions combined temporarily. Original sessions are saved.`
             : `${active.karts.length} karts imported. Your lap analysis is ready.`,
       );
       setModal(null);
@@ -648,22 +664,27 @@ export default function App() {
     setCombineError("");
     setModal("combine");
   }
-  function saveCombined() {
+  function previewCombined() {
     try {
       const combined = combineSessions(
-        sessions.filter((s) => combineIds.includes(s.id)),
+        availableSessions.filter((s) => combineIds.includes(s.id)),
         combineName,
+        { temporary: true },
       );
-      setSessions((current) => [normalizeSessionFolders(combined), ...current]);
+      setTemporaryAnalysis(combined);
       setActiveFolderId(null);
       activate(combined.id);
       setModal(null);
       setNotice(
-        `${combined.sources.length} source sessions combined. Every valid lap counts.`,
+        `${combined.sources.length} source sessions combined temporarily. Clears on refresh.`,
       );
     } catch (e) {
       setCombineError(e.message);
     }
+  }
+  function closeTemporaryAnalysis() {
+    setTemporaryAnalysis(null);
+    activate(sessions[0]?.id || null);
   }
   function removeSession(id) {
     if (
@@ -827,7 +848,7 @@ export default function App() {
               <button
                 className="button secondary"
                 onClick={openCombine}
-                disabled={sessions.length < 2}
+                disabled={availableSessions.length < 2}
               >
                 <Layers3 size={16} />
                 Combine sessions
@@ -966,6 +987,7 @@ export default function App() {
                         {visibleSessions.map((s) => (
                           <option key={s.id} value={s.id}>
                             {s.name}
+                            {s.isTemporary ? " (temporary)" : ""}
                           </option>
                         ))}
                       </select>
@@ -990,6 +1012,21 @@ export default function App() {
                   <span>All valid laps included</span>
                 </div>
               </div>
+              {session.isTemporary && (
+                <div className="temporary-analysis-note" role="status">
+                  <span>
+                    <Clock3 size={15} />
+                    Temporary analysis · clears on refresh. Original sessions
+                    stay saved.
+                  </span>
+                  <button
+                    className="text-button"
+                    onClick={closeTemporaryAnalysis}
+                  >
+                    Close analysis
+                  </button>
+                </div>
+              )}
               {session.isCombined && (
                 <details className="combined-sources">
                   <summary>
@@ -1476,8 +1513,8 @@ export default function App() {
               Upload one or more .xlsx files with a “Lap” column and kart
               headings, like “2 - Driver name”. Decimal seconds, Excel time
               cells and m:ss.mmm times are supported. Select several files to
-              combine them into one analysis while keeping each original session
-              saved.
+              combine them into a temporary analysis while keeping each original
+              session saved. The combined view clears when you refresh.
             </HelpStep>
             <HelpStep n="02" title="Keep the kart. Skip the name.">
               We read the number at the start of each kart heading. Driver names
@@ -1621,7 +1658,7 @@ export default function App() {
           <button
             className="button secondary full session-combine-button"
             onClick={openCombine}
-            disabled={sessions.length < 2}
+            disabled={availableSessions.length < 2}
           >
             <Layers3 size={17} />
             Combine saved sessions
@@ -1649,7 +1686,8 @@ export default function App() {
         >
           <p className="modal-description">
             Choose sessions to pool their laps by kart number. Averages use
-            every valid lap, so longer sessions carry their fair share.
+            every valid lap, so longer sessions carry their fair share. The
+            combined analysis is temporary and clears on refresh.
           </p>
           <label className="combine-name-label" htmlFor="combine-name">
             Analysis name
@@ -1662,7 +1700,7 @@ export default function App() {
             onChange={(e) => setCombineName(e.target.value)}
           />
           <div className="combine-options">
-            {sessions.map((s) => {
+            {availableSessions.map((s) => {
               const info = summarizeSession(s);
               return (
                 <label
@@ -1689,6 +1727,7 @@ export default function App() {
                       {s.isCombined
                         ? ` · ${s.sources.length} sessions combined`
                         : ""}
+                      {s.isTemporary ? " · Temporary" : ""}
                     </small>
                   </span>
                   {s.isCombined ? (
@@ -1707,7 +1746,7 @@ export default function App() {
           )}
           <button
             className="button primary full"
-            onClick={saveCombined}
+            onClick={previewCombined}
             disabled={combineIds.length < 2}
           >
             <Layers3 size={17} />
@@ -1722,8 +1761,8 @@ export default function App() {
             Upload more Excel sheets
           </button>
           <p className="modal-footnote">
-            Original sessions stay saved. If groups overlap, each source session
-            counts only once.
+            This analysis won’t be saved. Original sessions stay saved. If
+            groups overlap, each source session counts only once.
           </p>
         </Modal>
       )}

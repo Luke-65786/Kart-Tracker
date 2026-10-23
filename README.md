@@ -61,9 +61,11 @@ The **Δ TO FASTEST** column shows each kart’s average lap time minus the fast
 
 ### Combine sessions
 
-Select multiple files using **Upload sessions**, or drag several files onto the upload card. Upload up to 20 files at a time, each up to 10 MB. The app opens a combined analysis and keeps each original session saved separately. If any file cannot be imported, the entire batch is left unimported and existing sessions stay unchanged.
+Select multiple files using **Upload sessions**, or drag several files onto the upload card. Upload up to 20 files at a time, each up to 10 MB. The app opens a temporary combined analysis and keeps each original session saved separately. If any file cannot be imported, the entire batch is left unimported and existing sessions stay unchanged.
 
-Use **Combine sessions** to pool sessions already saved in your browser. Choose the sessions, name the analysis, and confirm. Original sessions stay available, and combined analyses keep their own snapshots of the source laps.
+Use **Combine sessions** to pool sessions already saved in your browser. Choose the sessions, name the analysis, and confirm. The combined view stays in memory for this visit and is never added to saved sessions or folders. Refreshing or closing the tab clears it; **Close analysis** dismisses it immediately. You can switch between it and the saved originals in the session picker. Creating another combination replaces the current temporary view. Original sessions, their folder memberships, and existing saved analyses from earlier versions stay saved.
+
+Folder comparisons continue to update automatically from their saved member sessions. Temporary combinations do not change folder membership. You can still export their results to CSV before dismissing them.
 
 Matching kart numbers share one average calculated from all their raw lap times. For example, one lap at 60 seconds and three laps at 90 seconds produce an average of 82.5 seconds. Combining overlapping groups counts each original source session once. Kart details show the original session and worksheet for every lap, and combined CSV exports use the pooled results.
 

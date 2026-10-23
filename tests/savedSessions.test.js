@@ -85,3 +85,18 @@ test("empty timing summaries have no kart data or invented times", () => {
     fastest: null,
   });
 });
+
+test("temporary analyses are never restored, while originals and previously saved analyses remain", () => {
+  const second = { ...uploaded, id: "second-upload", name: "Second heat" };
+  const legacy = combineSessions([uploaded, second], "Previously saved");
+  const temporary = combineSessions([uploaded, second], "Temporary preview", {
+    temporary: true,
+  });
+  const restored = restoreSessions([uploaded, second, legacy, temporary]);
+  assert.deepEqual(
+    restored.map((session) => session.id),
+    [uploaded.id, second.id, legacy.id],
+  );
+  assert.equal(summarizeSession(restored[2]).totalLaps, 2);
+  assert.equal(temporary.isTemporary, true);
+});

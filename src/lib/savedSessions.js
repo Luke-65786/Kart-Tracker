@@ -29,7 +29,7 @@ export function restoreSessions(stored) {
   if (!Array.isArray(stored)) return [];
   return stored.filter(isSession).flatMap((storedSession) => {
     const session = normalizeSessionFolders(storedSession);
-    if (isLegacySample(session)) return [];
+    if (isLegacySample(session) || session.isTemporary) return [];
     if (!Array.isArray(session.sources)) return [session];
     const removed = new Set(
       session.sources.filter(isLegacySample).map((source) => source.id),
