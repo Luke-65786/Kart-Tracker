@@ -49,15 +49,13 @@ test("folder uploads produce a live, persistent overall kart comparison and accu
   await expect(
     page.getByRole("button", { name: "Export results" }),
   ).toBeDisabled();
-  await page
-    .getByLabel("Upload Excel lap times")
-    .setInputFiles([
-      await file("morning.xlsx", "Morning heat", { 2: [60], 13: [64] }),
-      await file("afternoon.xlsx", "Afternoon heat", {
-        2: [90, 90, 90],
-        13: [66, 66, 66],
-      }),
-    ]);
+  await page.getByLabel("Upload Excel lap times").setInputFiles([
+    await file("morning.xlsx", "Morning heat", { 2: [60], 13: [64] }),
+    await file("afternoon.xlsx", "Afternoon heat", {
+      2: [90, 90, 90],
+      13: [66, 66, 66],
+    }),
+  ]);
   await expect(
     page.getByRole("heading", { name: "Overall kart comparison" }),
   ).toBeVisible();
@@ -83,9 +81,9 @@ test("folder uploads produce a live, persistent overall kart comparison and accu
   const saved = await page.evaluate(() =>
     JSON.parse(localStorage.getItem("kartlab.sessions.v1")),
   );
-  expect(saved).toHaveLength(3);
+  expect(saved).toHaveLength(2);
   expect(saved.filter((s) => s.folderId)).toHaveLength(2);
-  expect(saved.find((s) => s.isSample).folderId).toBeUndefined();
+  expect(saved.every((s) => Boolean(s.folderId))).toBe(true);
   await page.reload();
   await expect(page.locator("#folder-select option:checked")).toHaveText(
     "Race day",
@@ -145,7 +143,7 @@ test("existing sessions can be filed, moved, renamed, and retained when a folder
   const sessionCount = await page.evaluate(
     () => JSON.parse(localStorage.getItem("kartlab.sessions.v1")).length,
   );
-  expect(sessionCount).toBe(2);
+  expect(sessionCount).toBe(1);
 });
 
 test("folders and the delta column are usable on mobile", async ({ page }) => {

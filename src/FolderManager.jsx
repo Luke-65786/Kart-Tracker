@@ -164,6 +164,12 @@ export default function FolderManager({
             in All sessions.
           </p>
           <div className="folder-member-list">
+            {!sessions.length && (
+              <p className="modal-description">
+                No files yet. Open this folder and upload your first Excel
+                sheet.
+              </p>
+            )}
             {sessions.map((session) => {
               const info = summarizeSession(session);
               const currentFolder = folders.find(
@@ -186,11 +192,7 @@ export default function FolderManager({
                     <strong>{session.name}</strong>
                     <small>
                       {info.karts.length} karts · {info.totalLaps} laps
-                      {session.isSample
-                        ? " · Sample"
-                        : session.isCombined
-                          ? " · Combined analysis"
-                          : ""}
+                      {session.isCombined ? " · Combined analysis" : ""}
                     </small>
                     <small>
                       {currentFolder ? `In ${currentFolder.name}` : "Unfiled"} ·{" "}

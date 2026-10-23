@@ -39,9 +39,9 @@ test("formatting rounds milliseconds across minute boundaries", () => {
   assert.equal(formatTime(7.1), "0:07.100");
 });
 
-test("the supplied sample has 12 karts, 300 laps and exact per-kart averages", async () => {
+test("the supplied workbook fixture has 12 karts, 300 laps and exact per-kart averages", async () => {
   const sample = JSON.parse(
-    await readFile(new URL("../src/data/sample.json", import.meta.url)),
+    await readFile(new URL("./fixtures/laptimes.json", import.meta.url)),
   );
   const stats = summarizeSession(sample);
   assert.equal(stats.karts.length, 12);

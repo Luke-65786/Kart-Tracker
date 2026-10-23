@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import ExcelJS from "exceljs";
 import { readFile } from "node:fs/promises";
-import sample from "../src/data/sample.json" with { type: "json" };
+import sample from "./fixtures/laptimes.json" with { type: "json" };
 
 async function timingFile(fileName, title, times) {
   const wb = new ExcelJS.Workbook();
@@ -37,12 +37,13 @@ async function workbookUpload(page) {
   await expect(page.locator(".imported-badge")).toBeVisible();
 }
 
-test("sample rankings, search, sort and kart details show correct results", async ({
+test("uploaded rankings, search, sort and kart details show correct results", async ({
   page,
 }) => {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/");
+  await workbookUpload(page);
   await expect(
     page.getByRole("heading", { name: "Know your karts." }),
   ).toBeVisible();
@@ -106,6 +107,7 @@ test("rejects unsupported and corrupt uploads without losing the active session"
   page,
 }) => {
   await page.goto("/");
+  await workbookUpload(page);
   await page.getByLabel("Upload Excel lap times").setInputFiles({
     name: "notes.txt",
     mimeType: "text/plain",
@@ -127,6 +129,7 @@ test("compares up to four karts and supports choosing a different chart", async 
   page,
 }) => {
   await page.goto("/");
+  await workbookUpload(page);
   await page.getByLabel("Kart for lap chart").selectOption("2");
   await expect(page.locator(".chart-legend")).toContainText("Kart 2");
   await page.getByRole("button", { name: "Compare karts" }).click();
@@ -209,7 +212,7 @@ test("uploads multiple workbooks into a persisted combined analysis, preserving 
   const saved = await page.evaluate(() =>
     JSON.parse(localStorage.getItem("kartlab.sessions.v1")),
   );
-  expect(saved).toHaveLength(4);
+  expect(saved).toHaveLength(3);
   expect(saved[0].sources).toHaveLength(2);
   expect(saved[0].sources.every((s) => !s.isSample)).toBe(true);
   expect(JSON.stringify(saved)).not.toContain("Do not import this name");
@@ -257,9 +260,9 @@ test("combines existing sessions without double counting overlapping groups", as
   await page
     .getByRole("button", { name: "Combine sessions", exact: true })
     .click();
-  await expect(
-    page.getByLabel("Include A Final", { exact: true }),
-  ).not.toBeChecked();
+  await expect(page.getByLabel("Include A Final", { exact: true })).toHaveCount(
+    0,
+  );
   await page.getByLabel("Include Morning heat").check();
   await page.getByLabel("Analysis name").fill("Race day");
   await page
@@ -286,19 +289,18 @@ test("batch failures leave existing sessions intact and do not partially import 
   page,
 }) => {
   await page.goto("/");
+  await workbookUpload(page);
   const before = await page.evaluate(() =>
     localStorage.getItem("kartlab.sessions.v1"),
   );
-  await page
-    .getByLabel("Upload Excel lap times")
-    .setInputFiles([
-      await timingFile("valid.xlsx", "Valid heat", [60]),
-      {
-        name: "broken.xlsx",
-        mimeType: "application/octet-stream",
-        buffer: Buffer.from("not a workbook"),
-      },
-    ]);
+  await page.getByLabel("Upload Excel lap times").setInputFiles([
+    await timingFile("valid.xlsx", "Valid heat", [60]),
+    {
+      name: "broken.xlsx",
+      mimeType: "application/octet-stream",
+      buffer: Buffer.from("not a workbook"),
+    },
+  ]);
   await expect(page.getByRole("alert")).toContainText(
     "No sessions from this upload were added",
   );
@@ -329,18 +331,12 @@ test("remains dark with a light OS theme, including dialogs and native selects",
       .first()
       .evaluate((el) => getComputedStyle(el).backgroundColor),
   ).toBe("rgb(23, 29, 36)");
-  await page
-    .getByRole("button", { name: "Combine sessions", exact: true })
-    .click();
+  await page.getByRole("button", { name: "New folder", exact: true }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
   expect(
     await page
       .getByRole("dialog")
       .evaluate((el) => getComputedStyle(el).backgroundColor),
   ).toBe("rgb(23, 29, 36)");
-  expect(
-    await page
-      .getByRole("button", { name: "Combine 0 selected sessions" })
-      .isDisabled(),
-  ).toBe(true);
+  await expect(page.getByLabel("New folder name")).toHaveValue("");
 });

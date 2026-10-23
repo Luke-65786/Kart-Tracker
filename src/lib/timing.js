@@ -55,13 +55,14 @@ export function summarizeKart(kart) {
 }
 
 export function summarizeSession(session) {
-  const karts = session.karts
+  const karts = (session?.karts || [])
     .filter((k) => k.laps.length)
     .map(summarizeKart)
     .sort((a, b) => a.average - b.average);
   const totalLaps = karts.reduce((sum, k) => sum + k.count, 0);
-  const average =
-    karts.reduce((sum, k) => sum + k.average * k.count, 0) / totalLaps;
+  const average = totalLaps
+    ? karts.reduce((sum, k) => sum + k.average * k.count, 0) / totalLaps
+    : null;
   const fastest = karts.reduce(
     (best, k) => (!best || k.best < best.best ? k : best),
     null,

@@ -1,6 +1,6 @@
 # Kartlab
 
-A kart lap-time tracker built with React and Vite, with a permanent dark theme. Upload Excel lap sheets, keep the kart numbers, and compare average times without importing driver names. The included A Final sample uses the 12 karts and 300 laps from the supplied workbook, with driver names removed.
+A kart lap-time tracker built with React and Vite, with a permanent dark theme. Upload Excel lap sheets, keep the kart numbers, and compare average times without importing driver names. New workspaces start empty, with no preloaded sessions or kart data.
 
 ## Run locally
 
@@ -57,11 +57,13 @@ The **Δ TO FASTEST** column shows each kart’s average lap time minus the fast
 
 Select multiple files using **Upload sessions**, or drag several files onto the upload card. Upload up to 20 files at a time, each up to 10 MB. The app opens a combined analysis and keeps each original session saved separately. If any file cannot be imported, the entire batch is left unimported and existing sessions stay unchanged.
 
-Use **Combine sessions** to pool sessions already saved in your browser. Choose the sessions, name the analysis, and confirm. The sample is never selected automatically. Original sessions stay available, and combined analyses keep their own snapshots of the source laps.
+Use **Combine sessions** to pool sessions already saved in your browser. Choose the sessions, name the analysis, and confirm. Original sessions stay available, and combined analyses keep their own snapshots of the source laps.
 
 Matching kart numbers share one average calculated from all their raw lap times. For example, one lap at 60 seconds and three laps at 90 seconds produce an average of 82.5 seconds. Combining overlapping groups counts each original source session once. Kart details show the original session and worksheet for every lap, and combined CSV exports use the pooled results.
 
 Workbook parsing happens entirely in the browser. Parsed sessions are stored in this browser’s `localStorage`; the original workbook and driver names are not stored. There is no account, cloud sync, or server upload. Export results before clearing browser data. The CSV contains summary statistics, not a backup of every raw lap.
+
+Deleting the last uploaded session returns to an empty workspace. When upgrading an older workspace, the former built-in sample and its contributions to combined analyses are removed; real uploads, their folder memberships, and folder names are retained. Regression lap data is stored only under `tests/fixtures/` and is not included in the application build.
 
 ## Validation
 
@@ -76,4 +78,4 @@ Browser tests use Playwright. Install its Chromium once with `npx playwright ins
 CHROMIUM_PATH=/usr/bin/chromium npm run test:e2e
 ```
 
-One additional browser test is enabled by setting `SAMPLE_XLSX` to the original supplied workbook’s path. That workbook is not committed because it contains driver names. Without the variable, twelve browser tests execute and the external-workbook test is explicitly skipped. A generated workbook regression test covers the namespace-prefixed XML used by the timing exporter. Session and folder tests cover weighted averages, overlapping combinations, source provenance, batch failures, persistence, folder creation and movement, safe deletion, deltas, exports, and dark mode with a light operating-system theme.
+One additional browser test is enabled by setting `SAMPLE_XLSX` to the original supplied workbook’s path. That workbook is not committed because it contains driver names. Without the variable, sixteen browser tests execute and the external-workbook test is explicitly skipped. A generated workbook regression test covers the namespace-prefixed XML used by the timing exporter. Session and folder tests cover weighted averages, overlapping combinations, source provenance, batch failures, persistence, folder creation and movement, safe deletion, deltas, exports, empty starts, legacy sample cleanup, and dark mode with a light operating-system theme.

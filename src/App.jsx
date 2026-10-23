@@ -30,7 +30,6 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import sample from "./data/sample.json";
 import {
   formatDelta,
   formatTime,
@@ -40,6 +39,7 @@ import {
 import { combineSessions } from "./lib/combineSessions.js";
 import { folderAnalysis, folderName, unfileFolder } from "./lib/folders.js";
 import FolderManager from "./FolderManager.jsx";
+import { restoreSessions } from "./lib/savedSessions.js";
 
 const STORAGE_KEY = "kartlab.sessions.v1";
 const FOLDER_STORAGE_KEY = "kartlab.folders.v1";
@@ -47,31 +47,11 @@ const COLORS = ["#b8df73", "#aa9aff", "#efb777", "#78c9d8"];
 
 function loadSessions() {
   try {
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (
-      Array.isArray(stored) &&
-      stored.length &&
-      stored.every(
-        (s) =>
-          typeof s.id === "string" &&
-          typeof s.name === "string" &&
-          typeof s.fileName === "string" &&
-          Array.isArray(s.karts) &&
-          s.karts.length &&
-          s.karts.every(
-            (k) =>
-              typeof k.number === "string" &&
-              Array.isArray(k.laps) &&
-              k.laps.length &&
-              k.laps.every((l) => Number.isFinite(l.seconds) && l.seconds > 0),
-          ),
-      )
-    )
-      return stored;
+    return restoreSessions(JSON.parse(localStorage.getItem(STORAGE_KEY)));
   } catch {
     /* A fresh session also recovers from unavailable or invalid storage. */
   }
-  return [sample];
+  return [];
 }
 
 function loadFolders() {
@@ -380,9 +360,11 @@ export default function App() {
   });
   const [activeId, setActiveId] = useState(() => {
     try {
-      return localStorage.getItem("kartlab.active") || loadSessions()[0].id;
+      return (
+        localStorage.getItem("kartlab.active") || loadSessions()[0]?.id || null
+      );
     } catch {
-      return sample.id;
+      return null;
     }
   });
   const [query, setQuery] = useState("");
@@ -416,7 +398,7 @@ export default function App() {
       (activeId === `folder:${activeFolder.id}` ||
         !folderMembers.some((s) => s.id === activeId)),
   );
-  const hasData = !activeFolder || folderMembers.length > 0;
+  const hasData = activeFolder ? folderMembers.length > 0 : sessions.length > 0;
   const session =
     (isFolderOverview && overall) ||
     (activeFolder
@@ -468,11 +450,12 @@ export default function App() {
   }, [activeFolder?.id]);
   useEffect(() => {
     try {
-      localStorage.setItem("kartlab.active", session.id);
+      if (session) localStorage.setItem("kartlab.active", session.id);
+      else localStorage.removeItem("kartlab.active");
     } catch {
       /* Session is still usable in memory. */
     }
-  }, [session.id]);
+  }, [session?.id]);
   useEffect(() => {
     if (!notice) return;
     const timeout = setTimeout(() => setNotice(""), 5500);
@@ -492,7 +475,7 @@ export default function App() {
         ? `folder:${id}`
         : sessions.some((s) => s.id === activeId)
           ? activeId
-          : sessions[0].id,
+          : sessions[0]?.id || null,
     );
     setModal(null);
   }
@@ -525,7 +508,7 @@ export default function App() {
     setSessions((current) => unfileFolder(current, id));
     if (activeFolderId === id) {
       setActiveFolderId(null);
-      activate(sessions[0].id);
+      activate(sessions[0]?.id || null);
     }
     setNotice("Folder removed. All sessions have been kept.");
   }
@@ -622,9 +605,9 @@ export default function App() {
     setCombineIds(
       isFolderOverview
         ? folderMembers.map((s) => s.id)
-        : session.isSample
-          ? []
-          : [session.id],
+        : session
+          ? [session.id]
+          : [],
     );
     setCombineName("Combined analysis");
     setCombineError("");
@@ -655,8 +638,8 @@ export default function App() {
     )
       return;
     const remaining = sessions.filter((s) => s.id !== id);
-    setSessions(remaining.length ? remaining : [sample]);
-    if (id === session.id) activate((remaining[0] || sample).id);
+    setSessions(remaining);
+    if (id === session?.id) activate(remaining[0]?.id || null);
   }
   const fastestAverage = stats.karts[0];
   const gap =
@@ -790,7 +773,11 @@ export default function App() {
                 <ArrowDownToLine size={16} />
                 Export results
               </button>
-              <button className="button secondary" onClick={openCombine}>
+              <button
+                className="button secondary"
+                onClick={openCombine}
+                disabled={sessions.length < 2}
+              >
                 <Layers3 size={16} />
                 Combine sessions
               </button>
@@ -871,13 +858,21 @@ export default function App() {
           {!hasData ? (
             <section className="empty-folder panel">
               <span className="empty-folder-icon">
-                <FolderOpen size={35} />
+                {activeFolder ? (
+                  <FolderOpen size={35} />
+                ) : (
+                  <FileSpreadsheet size={35} />
+                )}
               </span>
-              <h2>Give this folder some track time.</h2>
+              <h2>
+                {activeFolder
+                  ? "Give this folder some track time."
+                  : "Your next session starts here."}
+              </h2>
               <p>
-                Add saved sessions or upload Excel files to {activeFolder.name}.
-                Its overall kart comparison will appear here and update
-                automatically.
+                {activeFolder
+                  ? `Add saved sessions or upload Excel files to ${activeFolder.name}. Its overall kart comparison will appear here and update automatically.`
+                  : "Upload your Excel lap times to compare karts, calculate averages, and see who sets the pace. You can create a folder first to keep your sessions organised."}
               </p>
               <div>
                 <button
@@ -885,7 +880,7 @@ export default function App() {
                   onClick={() => setModal("folders")}
                 >
                   <Folder size={16} />
-                  Choose saved sessions
+                  {activeFolder ? "Choose saved sessions" : "Create a folder"}
                 </button>
                 <button
                   className="button primary"
@@ -893,7 +888,7 @@ export default function App() {
                   disabled={busy}
                 >
                   <Plus size={17} />
-                  Upload to folder
+                  {activeFolder ? "Upload to folder" : "Upload Excel sheets"}
                 </button>
               </div>
             </section>
@@ -927,15 +922,13 @@ export default function App() {
                     </div>
                   </div>
                   <span
-                    className={`badge ${session.isCombined ? "combined-badge" : session.isSample ? "sample-badge" : "imported-badge"}`}
+                    className={`badge ${session.isCombined ? "combined-badge" : "imported-badge"}`}
                   >
                     {session.isFolder
                       ? "Folder overview"
                       : session.isCombined
                         ? `${session.sources.length} sessions combined`
-                        : session.isSample
-                          ? "Sample session"
-                          : "Imported session"}
+                        : "Imported session"}
                   </span>
                 </div>
                 <div className="session-source">
@@ -961,10 +954,7 @@ export default function App() {
                         <FileSpreadsheet size={15} />
                         <span>
                           <strong>{source.name}</strong>
-                          <small>
-                            {source.fileName}
-                            {source.isSample ? " · Sample" : ""}
-                          </small>
+                          <small>{source.fileName}</small>
                         </span>
                         <span>{source.lapCount} laps</span>
                       </div>
@@ -1481,6 +1471,12 @@ export default function App() {
             name. Combine sessions to analyse their laps together.
           </p>
           <div className="session-list">
+            {!sessions.length && (
+              <p className="modal-description">
+                No sessions yet. Upload an Excel workbook to start your track
+                record.
+              </p>
+            )}
             {sessions.map((s) => {
               const info = summarizeSession(s);
               return (
@@ -1514,9 +1510,6 @@ export default function App() {
                     <p>
                       {info.karts.length} karts<span>·</span>
                       {info.totalLaps} laps
-                      {s.isSample && (
-                        <span className="sample-text">Sample</span>
-                      )}
                       {s.isCombined && (
                         <span className="sample-text">
                           {s.sources.length} combined
@@ -1573,6 +1566,7 @@ export default function App() {
           <button
             className="button secondary full session-combine-button"
             onClick={openCombine}
+            disabled={sessions.length < 2}
           >
             <Layers3 size={17} />
             Combine saved sessions
@@ -1586,8 +1580,8 @@ export default function App() {
             {busy ? importProgress : "Upload more sessions"}
           </button>
           <p className="modal-footnote">
-            Removing your last session brings back the sample so you can keep
-            exploring.
+            Sessions are saved in this browser. Removing your last session
+            leaves an empty workspace.
           </p>
         </Modal>
       )}
@@ -1636,11 +1630,9 @@ export default function App() {
                     <strong>{s.name}</strong>
                     <small>
                       {info.karts.length} karts · {info.totalLaps} laps
-                      {s.isSample
-                        ? " · Sample"
-                        : s.isCombined
-                          ? ` · ${s.sources.length} sessions combined`
-                          : ""}
+                      {s.isCombined
+                        ? ` · ${s.sources.length} sessions combined`
+                        : ""}
                     </small>
                   </span>
                   {s.isCombined ? (
@@ -1675,7 +1667,7 @@ export default function App() {
           </button>
           <p className="modal-footnote">
             Original sessions stay saved. If groups overlap, each source session
-            counts only once. Sample data is included only when you select it.
+            counts only once.
           </p>
         </Modal>
       )}
