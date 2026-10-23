@@ -13,6 +13,14 @@ npm run dev
 
 The development server uses port 5173. `npm run build` creates a production build in `dist/`; `npm run preview` serves that build for local verification. A static hosting provider can serve `dist/` without a backend.
 
+## Publish with GitHub Pages
+
+The deployment workflow in `.github/workflows/deploy-pages.yml` builds, tests, and publishes the site after each push to `main`. Relative asset paths let Excel uploads and other features work under the `/Kart-Tracker/` project path.
+
+For the initial deployment, enable **GitHub Actions** as the publishing source in [Settings → Pages](https://github.com/Luke-65786/Kart-Tracker/settings/pages). If the first workflow ran before Pages was enabled, open [the deployment workflow](https://github.com/Luke-65786/Kart-Tracker/actions/workflows/deploy-pages.yml) and select **Run workflow**. Subsequent pushes deploy automatically.
+
+After a successful deployment, the site is available at **https://luke-65786.github.io/Kart-Tracker/**. Deployment status is shown on the workflow page; the presence of this URL in the README does not indicate that a deployment has completed.
+
 ## Upload format
 
 Upload an unprotected `.xlsx` workbook up to 10 MB. Each timing table needs a `Lap` column and kart headers such as `2 - Driver name`, `Kart 2`, or `2`. Bold headers in timing exports are supported. Rows beneath them contain the lap number and each kart’s time:
