@@ -196,3 +196,21 @@ test("saving an imported copy rolls back existing data if storage fills up betwe
   );
   assert.deepEqual(values, originals);
 });
+
+test("phone readers work without native decompression and detect links cut off in transit", async () => {
+  const copy = createFolderCopy(folder, [a, b]);
+  const link = await createFolderLink(copy, "https://example.com/");
+  const native = globalThis.DecompressionStream;
+  try {
+    globalThis.DecompressionStream = undefined;
+    assert.deepEqual(await readFolderLink(link), copy);
+    await assert.rejects(readFolderLink(link.slice(0, -4)), /cut off/);
+    const oldLink = new URL(link);
+    const params = new URLSearchParams(oldLink.hash.slice(1));
+    params.delete("bytes");
+    oldLink.hash = params.toString();
+    assert.deepEqual(await readFolderLink(oldLink.href), copy);
+  } finally {
+    globalThis.DecompressionStream = native;
+  }
+});

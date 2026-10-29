@@ -63,7 +63,7 @@ No account or online storage service is required. The compressed data travels in
 
 Only the chosen folder’s saved sessions are included. Other folder memberships, unrelated sessions, display settings, and temporary analyses are excluded. Importing creates new IDs and a new folder; a matching folder name receives a “(copy)” suffix. Existing data is preserved, and shared source IDs are remapped consistently so overlapping older analyses still count each lap once.
 
-For a folder too large to fit in a link, use **Download folder copy** and send the `.kartlab.json` file instead. On the other device, open **Folders → Open folder link or copy → Open downloaded copy**. The same screen accepts pasted links. Copies are limited to 2 MiB of JSON and links to 32,000 characters; split very large events into smaller folders. Modern browsers supporting `CompressionStream` and `DecompressionStream` are needed for compressed links. Downloaded copies work without those APIs.
+For a folder too large to fit in a link, use **Download folder copy** and send the `.kartlab.json` file instead. On the other device, open **Folders → Open folder link or copy → Open downloaded copy**. The same screen accepts pasted links. Copies are limited to 2 MiB of JSON and links to 32,000 characters; split very large events into smaller folders. Creating compressed links needs `CompressionStream`. Opening links uses a portable gzip reader, including on phones without `DecompressionStream`. New links include a byte count to detect truncation during copying or messaging. Downloaded copies work without those APIs.
 
 ### Delta to the fastest kart
 

@@ -86,6 +86,7 @@ test("a folder link opens a complete independent copy on a second device without
   ]);
   const device = await browser.newContext({ baseURL: "http://127.0.0.1:5173" });
   try {
+    await device.addInitScript(() => { window.DecompressionStream = undefined; });
     const target = await device.newPage();
     const existing = session(
       "morning",

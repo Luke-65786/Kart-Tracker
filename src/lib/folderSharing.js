@@ -212,7 +212,7 @@ export async function createFolderLink(copy, baseUrl) {
   );
   const url = new URL(baseUrl);
   url.search = "";
-  url.hash = `folder=v1.${base64url(bytes)}`;
+  url.hash = `bytes=${bytes.length}&folder=v1.${base64url(bytes)}`;
   if (url.href.length > MAX_FOLDER_LINK_LENGTH) {
     throw new Error(
       "This folder is too large for a link. Download a folder copy and open that file on your other device instead.",
@@ -251,20 +251,56 @@ export async function readFolderLink(link) {
     );
   const encoded = token.slice(3);
   if (!/^[\w-]+$/.test(encoded) || encoded.length % 4 === 1) invalid();
-  if (typeof DecompressionStream === "undefined")
-    throw new Error("Use an up-to-date browser to open this folder link.");
   try {
-    const binary = atob(encoded.replace(/-/g, "+").replace(/_/g, "/"));
+    const padded = encoded
+      .replace(/-/g, "+")
+      .replace(/_/g, "/")
+      .padEnd(Math.ceil(encoded.length / 4) * 4, "=");
+    const binary = atob(padded);
+    const expected = new URLSearchParams(
+      new URL(link.trim()).hash.slice(1),
+    ).get("bytes");
+    if (
+      expected !== null &&
+      (!/^\d+$/.test(expected) || Number(expected) !== binary.length)
+    ) {
+      throw new Error(
+        "This folder link was cut off while copying or sending it. Copy the complete link again, or use Download folder copy instead.",
+      );
+    }
     const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
-    const decoded = await boundedBytes(
-      new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip")),
-      MAX_FOLDER_BYTES,
-    );
+    // Use the same gzip implementation on phones and desktop, including browsers
+    // without DecompressionStream. Keep decompressed output bounded.
+    const { default: pako } = await import("pako");
+    const inflater = new pako.Inflate();
+    const chunks = [];
+    let length = 0;
+    inflater.onData = (chunk) => {
+      length += chunk.length;
+      if (length > MAX_FOLDER_BYTES)
+        throw new Error(
+          "This folder copy is too large. Your saved folders have not changed.",
+        );
+      chunks.push(chunk);
+    };
+    inflater.push(bytes, true);
+    if (inflater.err || !inflater.ended)
+      throw new Error("Incomplete compressed data");
+    const decoded = new Uint8Array(length);
+    let offset = 0;
+    for (const chunk of chunks) {
+      decoded.set(chunk, offset);
+      offset += chunk.length;
+    }
     return readFolderCopyJson(
       new TextDecoder("utf-8", { fatal: true }).decode(decoded),
     );
   } catch (error) {
-    if (error.message.includes("too large")) throw error;
+    if (
+      error.message.includes("too large") ||
+      error.message.includes("cut off")
+    )
+      throw error;
     throw new Error(
       "This folder link is damaged or incomplete. Ask for a new link. Your saved folders have not changed.",
     );
