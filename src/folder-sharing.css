@@ -1,0 +1,167 @@
+.folder-sharing-entry {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: center;
+  margin: -4px 0 20px;
+}
+.folder-sharing-entry > span {
+  font-size: 11px;
+  color: var(--muted);
+}
+.folder-share-button {
+  padding: 5px;
+  color: var(--accent-text);
+}
+.folder-toolbar {
+  flex-wrap: wrap;
+}
+.folder-share-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.folder-sharing .modal-description strong {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.folder-share-summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  background: var(--accent-surface);
+  border: 1px solid var(--accent-border);
+  border-radius: 9px;
+  color: var(--accent-text);
+  margin: 18px 0;
+}
+.folder-share-summary > div {
+  min-width: 0;
+}
+.folder-share-summary strong {
+  display: block;
+  font: 500 19px var(--heading);
+  overflow-wrap: anywhere;
+}
+.folder-share-summary span {
+  display: block;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--muted);
+  margin-top: 5px;
+}
+.share-explainer {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 20px 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+.share-explainer svg {
+  margin-top: 3px;
+  color: var(--accent-text);
+}
+.share-field-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.folder-sharing textarea {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  resize: vertical;
+  font:
+    400 11px/1.7 "DM Sans",
+    sans-serif;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 11px 12px;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  margin-bottom: 14px;
+  overflow-wrap: anywhere;
+}
+.folder-sharing textarea:focus-visible {
+  outline: 3px solid var(--accent-text);
+  outline-offset: 3px;
+}
+.share-loading,
+.share-success {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--accent-text);
+  line-height: 1.7;
+  margin: 12px 0;
+}
+.share-error {
+  font-size: 12px;
+  line-height: 1.7;
+  padding: 11px 13px;
+  margin: 15px 0;
+  border: 1px solid var(--danger-border);
+  border-radius: 7px;
+  background: var(--danger-surface);
+  color: var(--danger-text);
+}
+.share-download {
+  margin-top: 12px;
+}
+.share-session-preview {
+  display: grid;
+  gap: 9px;
+  max-height: 220px;
+  overflow: auto;
+  margin-bottom: 22px;
+}
+.share-session-preview > div {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: var(--surface-raised);
+  min-width: 0;
+}
+.share-session-preview strong,
+.share-session-preview span {
+  display: block;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.share-session-preview span {
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.share-session-preview > p {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+.share-another {
+  display: block;
+  margin: 14px auto 0;
+  font-size: 11px;
+}
+@media (max-width: 480px) {
+  .folder-share-toolbar {
+    font-size: 10px;
+  }
+  .folder-toolbar:has(.folder-share-toolbar) .folder-scope {
+    flex-basis: 100%;
+  }
+  .folder-sharing-entry {
+    margin-top: 0;
+  }
+  .folder-sharing-entry > span {
+    font-size: 10px;
+  }
+}

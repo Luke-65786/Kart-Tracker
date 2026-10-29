@@ -6,6 +6,8 @@ import {
   Folder,
   FolderOpen,
   Plus,
+  Link,
+  Share2,
   Trash2,
 } from "lucide-react";
 import { summarizeSession } from "./lib/timing.js";
@@ -20,6 +22,8 @@ export default function FolderManager({
   onDelete,
   onMembershipChange,
   onOpen,
+  onShare,
+  onOpenCopy,
   busy,
 }) {
   const [name, setName] = useState("");
@@ -61,6 +65,13 @@ export default function FolderManager({
           Create folder
         </button>
       </form>
+      <div className="folder-sharing-entry">
+        <button className="button secondary" onClick={onOpenCopy}>
+          <Link size={15} />
+          Open folder link or copy
+        </button>
+        <span>Bring a folder from another device.</span>
+      </div>
       {error && (
         <p className="combine-error" role="alert">
           {error}
@@ -143,6 +154,14 @@ export default function FolderManager({
                 }}
               >
                 <Trash2 size={16} />
+              </button>
+              <button
+                className="icon-button folder-share-button"
+                aria-label={`Share ${folder.name}`}
+                title="Share folder"
+                onClick={() => onShare(folder.id)}
+              >
+                <Share2 size={16} />
               </button>
             </div>
           );

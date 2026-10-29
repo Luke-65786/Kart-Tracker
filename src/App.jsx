@@ -23,6 +23,7 @@ import {
   Menu,
   Plus,
   Search,
+  Share2,
   Settings,
   ShieldCheck,
   Timer,
@@ -50,6 +51,12 @@ import FolderManager from "./FolderManager.jsx";
 import SessionFolders from "./SessionFolders.jsx";
 import { restoreSessions } from "./lib/savedSessions.js";
 import SettingsPanel from "./SettingsPanel.jsx";
+import { OpenFolderPanel, ShareFolderPanel } from "./FolderSharing.jsx";
+import {
+  hasFolderLink,
+  prepareFolderImport,
+  saveFolderImport,
+} from "./lib/folderSharing.js";
 import {
   applyPreferences,
   loadPreferences,
@@ -395,6 +402,8 @@ export default function App() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [modal, setModal] = useState(null);
+  const [shareFolderId, setShareFolderId] = useState(null);
+  const [incomingFolderLink, setIncomingFolderLink] = useState("");
   const [detailNumber, setDetailNumber] = useState(null);
   const [chartNumber, setChartNumber] = useState(null);
   const [compareNumbers, setCompareNumbers] = useState([]);
@@ -404,6 +413,7 @@ export default function App() {
   const [importProgress, setImportProgress] = useState("");
   const fileInput = useRef(null);
   const activeFolder = folders.find((folder) => folder.id === activeFolderId);
+  const sharedFolder = folders.find((folder) => folder.id === shareFolderId);
   const folderMembers = useMemo(
     () =>
       activeFolder ? sessions.filter((s) => inFolder(s, activeFolder.id)) : [],
@@ -453,6 +463,17 @@ export default function App() {
     );
   }, [stats, query, sort]);
 
+  useEffect(() => {
+    function openIncomingFolder() {
+      if (hasFolderLink(window.location.href)) {
+        setIncomingFolderLink(window.location.href);
+        setModal("open-folder");
+      }
+    }
+    openIncomingFolder();
+    window.addEventListener("hashchange", openIncomingFolder);
+    return () => window.removeEventListener("hashchange", openIncomingFolder);
+  }, []);
   useEffect(() => {
     applyPreferences(preferences);
     try {
@@ -539,6 +560,40 @@ export default function App() {
     const id = globalThis.crypto.randomUUID();
     setFolders((current) => [...current, { id, name }]);
     return id;
+  }
+  function shareFolder(id) {
+    setShareFolderId(id);
+    setModal("share-folder");
+  }
+  function openFolderCopy() {
+    setIncomingFolderLink("");
+    setModal("open-folder");
+  }
+  function clearSharedFolderLink() {
+    if (hasFolderLink(window.location.href)) {
+      window.history.replaceState(
+        window.history.state,
+        "",
+        window.location.pathname + window.location.search,
+      );
+    }
+  }
+  function closeFolderCopy() {
+    setModal(null);
+    setIncomingFolderLink("");
+    clearSharedFolderLink();
+  }
+  function importFolderCopy(copy) {
+    const result = prepareFolderImport(copy, folders, sessions);
+    saveFolderImport(result);
+    setSessions(result.sessions);
+    setFolders(result.folders);
+    setActiveFolderId(result.folder.id);
+    activate(`folder:${result.folder.id}`);
+    closeFolderCopy();
+    setNotice(
+      `${result.folder.name} saved on this device. This copy can be edited independently.`,
+    );
   }
   function renameFolder(id, value) {
     const name = folderName(value, folders, id);
@@ -919,6 +974,15 @@ export default function App() {
                   : "Organise sessions. Compare every kart."}
               </span>
             </div>
+            {activeFolder && (
+              <button
+                className="text-button folder-share-toolbar"
+                onClick={() => shareFolder(activeFolder.id)}
+              >
+                <Share2 size={14} />
+                Share folder
+              </button>
+            )}
             <button
               className="text-button folder-manage-button"
               onClick={() => setModal("folders")}
@@ -1468,6 +1532,27 @@ export default function App() {
           </nav>
         </Modal>
       )}
+      {modal === "share-folder" && sharedFolder && (
+        <Modal
+          title="Take your folder with you."
+          eyebrow="SHARE FOLDER"
+          close={() => setModal(null)}
+        >
+          <ShareFolderPanel folder={sharedFolder} sessions={sessions} />
+        </Modal>
+      )}
+      {modal === "open-folder" && (
+        <Modal
+          title="Your folder, another device."
+          eyebrow="OPEN A FOLDER COPY"
+          close={closeFolderCopy}
+        >
+          <OpenFolderPanel
+            initialLink={incomingFolderLink}
+            onImport={importFolderCopy}
+          />
+        </Modal>
+      )}
       {modal === "settings" && (
         <Modal
           title="Your workspace, your way."
@@ -1498,6 +1583,8 @@ export default function App() {
             onDelete={deleteFolder}
             onMembershipChange={setSessionMembership}
             onOpen={chooseFolder}
+            onShare={shareFolder}
+            onOpenCopy={openFolderCopy}
             busy={busy}
           />
         </Modal>

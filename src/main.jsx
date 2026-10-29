@@ -11,6 +11,7 @@ import App from "./App.jsx";
 import "./styles.css";
 import "./themes.css";
 import "./settings.css";
+import "./folder-sharing.css";
 import { applyPreferences, loadPreferences } from "./lib/preferences.js";
 
 applyPreferences(loadPreferences());

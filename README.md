@@ -55,6 +55,16 @@ Each folder opens an overall comparison that pools the raw laps by kart number a
 
 Folders can be renamed or deleted. Deleting a folder keeps all its sessions in **All sessions** and preserves their other folder assignments. Each folder includes a shared session’s laps once, and **All sessions** keeps a single saved copy. Existing single-folder assignments upgrade automatically, with uploaded laps and folder names retained in this browser.
 
+### Open folders on another device
+
+Select a folder and click **Share folder**, or use the share icon on its card in **Folders**. Click **Copy folder link**, send the link to your other device, and open it in Kartlab. Review the folder’s sessions and click **Open a copy**. The copy includes the saved session names, kart numbers, raw lap times, worksheet/source information, and the overall comparison. It stays saved in that device’s browser after refreshing.
+
+No account or online storage service is required. The compressed data travels in the URL fragment, which browsers do not send to the hosting server. Anyone with the complete link can open the copy. Each copy is independent: changes on one device do not sync to another. Create a fresh link to share updated results.
+
+Only the chosen folder’s saved sessions are included. Other folder memberships, unrelated sessions, display settings, and temporary analyses are excluded. Importing creates new IDs and a new folder; a matching folder name receives a “(copy)” suffix. Existing data is preserved, and shared source IDs are remapped consistently so overlapping older analyses still count each lap once.
+
+For a folder too large to fit in a link, use **Download folder copy** and send the `.kartlab.json` file instead. On the other device, open **Folders → Open folder link or copy → Open downloaded copy**. The same screen accepts pasted links. Copies are limited to 2 MiB of JSON and links to 32,000 characters; split very large events into smaller folders. Modern browsers supporting `CompressionStream` and `DecompressionStream` are needed for compressed links. Downloaded copies work without those APIs.
+
 ### Delta to the fastest kart
 
 The **Δ TO FASTEST** column shows each kart’s average lap time minus the fastest kart’s average in the current session or folder. The leader shows `0.000s`; a kart averaging half a second slower shows `+0.500s`. Ties show zero. Searching or sorting does not change the benchmark. The same gap is available in kart details, comparison summaries, and the CSV export’s **Gap to fastest average (seconds)** column.
@@ -69,7 +79,7 @@ Folder comparisons continue to update automatically from their saved member sess
 
 Matching kart numbers share one average calculated from all their raw lap times. For example, one lap at 60 seconds and three laps at 90 seconds produce an average of 82.5 seconds. Combining overlapping groups counts each original source session once. Kart details show the original session and worksheet for every lap, and combined CSV exports use the pooled results.
 
-Workbook parsing happens entirely in the browser. Parsed sessions are stored in this browser’s `localStorage`; the original workbook and driver names are not stored. There is no account, cloud sync, or server upload. Export results before clearing browser data. The CSV contains summary statistics, not a backup of every raw lap.
+Workbook parsing happens entirely in the browser. Parsed sessions are stored in this browser’s `localStorage`; the original workbook and driver names are not stored. There is no account, cloud sync, or server upload. Folder links and downloaded copies let you transfer selected folders between devices. Keep a downloaded folder copy before clearing browser data; CSV exports contain summary statistics rather than every raw lap.
 
 Deleting the last uploaded session returns to an empty workspace. When upgrading an older workspace, the former built-in sample and its contributions to combined analyses are removed; real uploads, their folder memberships, and folder names are retained. Regression lap data is stored only under `tests/fixtures/` and is not included in the application build.
 
@@ -86,4 +96,4 @@ Browser tests use Playwright. Install its Chromium once with `npx playwright ins
 CHROMIUM_PATH=/usr/bin/chromium npm run test:e2e
 ```
 
-One additional browser test is enabled by setting `SAMPLE_XLSX` to the original supplied workbook’s path. That workbook is not committed because it contains driver names. Without the variable, the external-workbook test is explicitly skipped. A generated workbook regression test covers the namespace-prefixed XML used by the timing exporter. Session and folder tests cover weighted averages, overlapping combinations, source provenance, batch failures, persistence, folder creation, shared memberships, legacy membership upgrades, safe deletion, deltas, exports, empty starts, legacy sample cleanup, theme and display preference persistence, UI scaling on desktop and mobile, and a dark default with a light operating-system theme.
+One additional browser test is enabled by setting `SAMPLE_XLSX` to the original supplied workbook’s path. That workbook is not committed because it contains driver names. Without the variable, the external-workbook test is explicitly skipped. A generated workbook regression test covers the namespace-prefixed XML used by the timing exporter. Session and folder tests cover weighted averages, overlapping combinations, source provenance, batch failures, persistence, folder creation, shared memberships, legacy membership upgrades, safe deletion, cross-device folder links and downloaded copies, damaged/oversized data handling, deltas, exports, empty starts, legacy sample cleanup, theme and display preference persistence, UI scaling on desktop and mobile, and a dark default with a light operating-system theme.
