@@ -86,7 +86,9 @@ test("a folder link opens a complete independent copy on a second device without
   ]);
   const device = await browser.newContext({ baseURL: "http://127.0.0.1:5173" });
   try {
-    await device.addInitScript(() => { window.DecompressionStream = undefined; });
+    await device.addInitScript(() => {
+      window.DecompressionStream = undefined;
+    });
     const target = await device.newPage();
     const existing = session(
       "morning",
@@ -123,8 +125,8 @@ test("a folder link opens a complete independent copy on a second device without
     await expect(target.locator("#session-select option:checked")).toHaveText(
       "Race day 🏁 (copy)",
     );
-    await expect(target.locator(".metric-value").nth(1)).toHaveText("8");
-    await expect(target.locator(".delta-time").nth(1)).toHaveText("+17.000s");
+    await expect(target.locator(".metric-value").nth(1)).toHaveText("6");
+    await expect(target.locator(".delta-time").nth(1)).toHaveText("+24.000s");
     await expect(target.locator("html")).toHaveAttribute("data-theme", "light");
     expect(new URL(target.url()).hash).toBe("");
     const saved = await target.evaluate(() =>
@@ -152,7 +154,7 @@ test("a folder link opens a complete independent copy on a second device without
     await expect(target.locator("#folder-select option:checked")).toHaveText(
       "Race day 🏁 (copy)",
     );
-    await expect(target.locator(".metric-value").nth(1)).toHaveText("8");
+    await expect(target.locator(".metric-value").nth(1)).toHaveText("6");
     await expect(target.getByRole("dialog")).toHaveCount(0);
   } finally {
     await device.close();
@@ -218,7 +220,7 @@ test("downloaded copies work when link creation is unavailable, and invalid file
     await expect(target.locator("#folder-select option:checked")).toHaveText(
       "Race day 🏁",
     );
-    await expect(target.locator(".delta-time").nth(1)).toHaveText("+17.000s");
+    await expect(target.locator(".delta-time").nth(1)).toHaveText("+24.000s");
     expect(
       await target.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,

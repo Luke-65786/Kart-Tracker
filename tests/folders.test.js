@@ -46,7 +46,7 @@ test("folder comparison supports an empty folder and a single file without chang
   assert.equal(JSON.stringify(a), before);
 });
 
-test("folder averages and deltas use all member laps, excluding other folders and unfiled files", () => {
+test("folder averages and deltas apply IQR to pooled member laps, excluding other folders and unfiled files", () => {
   const a = session("Morning", { 2: [60], 13: [64] });
   const b = session("Afternoon", { 2: [90, 90, 90], 13: [66, 66, 66] });
   const outside = session("Elsewhere", { 2: [1], 13: [1] }, ["other-track"]);
@@ -54,13 +54,13 @@ test("folder averages and deltas use all member laps, excluding other folders an
   const stats = summarizeSession(
     folderAnalysis(folder, [a, b, outside, unfiled]),
   );
-  assert.equal(stats.totalLaps, 8);
+  assert.equal(stats.totalLaps, 6);
   assert.equal(stats.karts[0].number, "13");
-  assert.equal(stats.karts[0].average, 65.5);
+  assert.equal(stats.karts[0].average, 66);
   assert.equal(stats.karts[0].delta, 0);
-  assert.equal(stats.karts[1].average, 82.5);
-  assert.equal(stats.karts[1].delta, 17);
-  assert.equal(formatDelta(stats.karts[1].delta), "+17.000s");
+  assert.equal(stats.karts[1].average, 90);
+  assert.equal(stats.karts[1].delta, 24);
+  assert.equal(formatDelta(stats.karts[1].delta), "+24.000s");
 });
 
 test("folder comparisons update after membership changes and deduplicate overlapping combined analyses", () => {
@@ -68,8 +68,8 @@ test("folder comparisons update after membership changes and deduplicate overlap
   const b = session("B", { 2: [90, 90, 90] });
   const combined = { ...combineSessions([a, b]), folderIds: [folder.id] };
   const stats = summarizeSession(folderAnalysis(folder, [a, b, combined]));
-  assert.equal(stats.totalLaps, 4);
-  assert.equal(stats.karts[0].average, 82.5);
+  assert.equal(stats.totalLaps, 3);
+  assert.equal(stats.karts[0].average, 90);
   const moved = { ...b, folderIds: ["elsewhere"] };
   const updated = summarizeSession(folderAnalysis(folder, [a, moved]));
   assert.equal(updated.totalLaps, 1);
@@ -104,11 +104,8 @@ test("sharing a session adds its laps once to each folder, with independent aver
   const saved = [shared, a, b, combined];
   const raceStats = summarizeSession(folderAnalysis(folder, saved));
   const otherStats = summarizeSession(folderAnalysis(other, saved));
-  assert.equal(raceStats.totalLaps, 8);
-  assert.equal(
-    raceStats.karts.find((kart) => kart.number === "2").average,
-    82.5,
-  );
+  assert.equal(raceStats.totalLaps, 6);
+  assert.equal(raceStats.karts.find((kart) => kart.number === "2").average, 90);
   assert.equal(otherStats.totalLaps, 4);
   assert.equal(
     otherStats.karts.find((kart) => kart.number === "2").average,

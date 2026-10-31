@@ -49,7 +49,7 @@ test("uploaded rankings, search, sort and kart details show correct results", as
   ).toBeVisible();
   await expect(page.locator(".leaderboard tbody tr")).toHaveCount(12);
   await expect(page.locator(".leaderboard tbody tr").first()).toContainText(
-    "1:01.117",
+    "1:00.860",
   );
   await page.getByLabel("Search kart number").fill("13");
   await expect(page.locator(".leaderboard tbody tr")).toHaveCount(1);
@@ -75,7 +75,7 @@ test("uploads Excel, drops driver names, persists sessions and exports accurate 
   await workbookUpload(page);
   await expect(page.locator(".leaderboard tbody tr")).toHaveCount(12);
   await expect(page.locator(".leaderboard tbody tr").first()).toContainText(
-    "1:01.117",
+    "1:00.860",
   );
   const saved = await page.evaluate(() =>
     localStorage.getItem("kartlab.sessions.v1"),
@@ -87,7 +87,7 @@ test("uploads Excel, drops driver names, persists sessions and exports accurate 
   await page.getByRole("button", { name: "Export results" }).click();
   const download = await downloadEvent;
   const csv = await readFile(await download.path(), "utf8");
-  expect(csv).toContain("1,13,25,61.117,60.614");
+  expect(csv).toContain("1,13,22,60.860,60.614");
   expect(csv.trim().split("\r\n")).toHaveLength(13);
   await page.getByRole("button", { name: /^Sessions/ }).click();
   const input = page.getByLabel("Session name for uploaded-final.xlsx");
@@ -188,9 +188,9 @@ test("original uploaded timing-exporter workbook imports correctly", async ({
   await expect(page.locator(".imported-badge")).toBeVisible();
   await expect(page.locator(".leaderboard tbody tr")).toHaveCount(12);
   await expect(page.locator(".leaderboard tbody tr").first()).toContainText(
-    "1:01.117",
+    "1:00.860",
   );
-  await expect(page.locator(".metric-value").nth(1)).toHaveText("300");
+  await expect(page.locator(".metric-value").nth(1)).toHaveText("280");
   await expect(page.getByRole("alert")).toHaveCount(0);
 });
 
@@ -207,8 +207,8 @@ test("uploads multiple workbooks into a temporary combined analysis, saving only
   await expect(page.locator(".combined-badge")).toHaveText(
     "2 sessions combined",
   );
-  await expect(page.locator(".metric-value").nth(1)).toHaveText("4");
-  await expect(page.locator(".average-time")).toHaveText("1:22.500");
+  await expect(page.locator(".metric-value").nth(1)).toHaveText("3");
+  await expect(page.locator(".average-time")).toHaveText("1:30.000");
   const saved = await page.evaluate(() =>
     JSON.parse(localStorage.getItem("kartlab.sessions.v1")),
   );
@@ -237,7 +237,7 @@ test("uploads multiple workbooks into a temporary combined analysis, saving only
   const downloadEvent = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export results" }).click();
   const csv = await readFile(await (await downloadEvent).path(), "utf8");
-  expect(csv).toContain("1,2,4,82.500,60.000,90.000");
+  expect(csv).toContain("1,2,3,90.000,90.000,90.000");
   await page.reload();
   await expect(page.locator(".temporary-analysis-note")).toHaveCount(0);
   await expect(page.locator(".combined-badge")).toHaveCount(0);
@@ -281,7 +281,7 @@ test("combines saved sessions temporarily without saving or double counting over
   await page
     .getByRole("button", { name: "Combine 2 selected sessions" })
     .click();
-  await expect(page.locator(".average-time")).toHaveText("1:22.500");
+  await expect(page.locator(".average-time")).toHaveText("1:30.000");
   await expect(page.locator("#session-select option:checked")).toHaveText(
     "Race day (temporary)",
   );
@@ -295,7 +295,7 @@ test("combines saved sessions temporarily without saving or double counting over
   await page
     .getByRole("button", { name: "Combine 2 selected sessions" })
     .click();
-  await expect(page.locator(".metric-value").nth(1)).toHaveText("4");
+  await expect(page.locator(".metric-value").nth(1)).toHaveText("3");
   await expect(page.locator(".combined-badge")).toHaveText(
     "2 sessions combined",
   );
@@ -405,7 +405,7 @@ test("temporary analysis stays out of saved lists and folders, remains available
   await expect(page.locator(".average-time")).toHaveText("1:00.000");
   await page.getByLabel("View folder").selectOption({ label: "All sessions" });
   await expect(page.locator(".temporary-analysis-note")).toBeVisible();
-  await expect(page.locator(".average-time")).toHaveText("1:22.500");
+  await expect(page.locator(".average-time")).toHaveText("1:30.000");
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,

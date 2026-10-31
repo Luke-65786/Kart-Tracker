@@ -39,11 +39,52 @@ export function kartNumber(value) {
     : null;
 }
 
+// Inclusive linear interpolation (the usual spreadsheet percentile method).
+function quartile(sorted, fraction) {
+  const position = (sorted.length - 1) * fraction;
+  const lower = Math.floor(position);
+  return (
+    sorted[lower] +
+    (sorted[Math.ceil(position)] - sorted[lower]) * (position - lower)
+  );
+}
+
+export function iqrRange(times) {
+  if (times.length < 4) return null;
+  const sorted = [...times].sort((a, b) => a - b);
+  const q1 = quartile(sorted, 0.25);
+  const q3 = quartile(sorted, 0.75);
+  const iqr = q3 - q1;
+  return { q1, q3, iqr, lower: q1 - 1.5 * iqr, upper: q3 + 1.5 * iqr };
+}
+
 export function summarizeKart(kart) {
-  const times = kart.laps.map((lap) => lap.seconds);
+  const range = iqrRange(kart.laps.map((lap) => lap.seconds));
+  // Decimal lap times can put an exact boundary a few floating-point units away.
+  const tolerance = range
+    ? Number.EPSILON *
+      Math.max(1, Math.abs(range.lower), Math.abs(range.upper)) *
+      8
+    : 0;
+  const excludedIndices = [];
+  const laps = kart.laps.filter((lap, index) => {
+    const included =
+      !range ||
+      (lap.seconds >= range.lower - tolerance &&
+        lap.seconds <= range.upper + tolerance);
+    if (!included) excludedIndices.push(index);
+    return included;
+  });
+  const times = laps.map((lap) => lap.seconds);
   const average = times.reduce((sum, t) => sum + t, 0) / times.length;
   return {
     ...kart,
+    laps,
+    allLaps: kart.laps,
+    recordedCount: kart.laps.length,
+    excludedCount: excludedIndices.length,
+    excludedIndices,
+    iqrRange: range,
     count: times.length,
     average,
     best: times.reduce((best, time) => Math.min(best, time), Infinity),
@@ -71,7 +112,16 @@ export function summarizeSession(session) {
     ...kart,
     delta: Math.max(0, kart.average - karts[0].average),
   }));
-  return { karts: ranked, totalLaps, average, fastest };
+  const recordedLaps = karts.reduce((sum, kart) => sum + kart.recordedCount, 0);
+  const excludedLaps = recordedLaps - totalLaps;
+  return {
+    karts: ranked,
+    totalLaps,
+    recordedLaps,
+    excludedLaps,
+    average,
+    fastest,
+  };
 }
 
 export function formatDelta(seconds) {
@@ -90,7 +140,7 @@ export function formatTime(seconds) {
 export function resultsCsv(session) {
   const { karts } = summarizeSession(session);
   return [
-    "Rank,Kart,Laps,Average (seconds),Best (seconds),Worst (seconds),Standard deviation (seconds),Gap to fastest average (seconds)",
+    "Rank,Kart,Laps used,Average (seconds),Best (seconds),Worst (seconds),Standard deviation (seconds),Recorded laps,IQR excluded,Gap to fastest average (seconds)",
     ...karts.map((k, index) =>
       [
         index + 1,
@@ -100,6 +150,8 @@ export function resultsCsv(session) {
         k.best.toFixed(3),
         k.worst.toFixed(3),
         k.deviation.toFixed(3),
+        k.recordedCount,
+        k.excludedCount,
         k.delta.toFixed(3),
       ].join(","),
     ),

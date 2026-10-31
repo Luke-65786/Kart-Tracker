@@ -81,8 +81,8 @@ test("folder links round-trip exact laps, Unicode names and provenance, excludin
   const expected = folderAnalysis(folder, [a, b, combined]);
   const actual = folderAnalysis(imported.folder, imported.sessions);
   assert.equal(resultsCsv(actual), resultsCsv(expected));
-  assert.equal(summarizeSession(actual).totalLaps, 8);
-  assert.equal(summarizeSession(actual).karts[1].delta, 17);
+  assert.equal(summarizeSession(actual).totalLaps, 6);
+  assert.equal(summarizeSession(actual).karts[1].delta, 24);
   assert.equal(actual.sources.length, 2);
   assert.equal(JSON.stringify(input), before);
 });

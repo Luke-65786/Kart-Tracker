@@ -216,7 +216,8 @@ export default function FolderManager({
                   <span className="combine-option-info">
                     <strong>{session.name}</strong>
                     <small>
-                      {info.karts.length} karts · {info.totalLaps} laps
+                      {info.karts.length} karts · {info.recordedLaps} recorded
+                      laps
                       {session.isCombined ? " · Combined analysis" : ""}
                     </small>
                     <small>

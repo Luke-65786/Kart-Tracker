@@ -32,14 +32,22 @@ Upload an unprotected `.xlsx` workbook up to 10 MB. Each timing table needs a `L
 
 - Decimal seconds, `m:ss.mmm`, `h:mm:ss.mmm`, and Excel time-formatted cells are supported. Formula cells need a cached numeric result saved by Excel.
 - Kart numbers are read from the headings; driver names are discarded.
-- Every valid lap contributes to the kart’s arithmetic mean. First laps and slower laps remain included. Blank, nonpositive, and invalid times are skipped, and the skipped count is shown.
-- The session average is weighted by lap count. Rankings use each kart’s average; lower is faster.
-- Tables from all worksheets are included. Matching kart numbers are combined across worksheets, with their source sheet retained. Charts align by recorded lap order.
+- Positive lap times are retained as original records. Blank, nonpositive, and invalid times are skipped during import, and the skipped count is shown. Statistics use the IQR filter described below; excluded outliers remain saved.
+- The session average is weighted by included lap count. Rankings use each kart’s average; lower is faster.
+- Tables from all worksheets are included. Matching kart numbers are combined across worksheets, with their source sheet retained. Charts align by included lap order.
 - Sheets are limited to 20,000 rows and 500 columns.
 
 ## Features and storage
 
 Search and sort kart rankings, inspect individual laps, compare up to four karts, rename or remove saved sessions, and export summary CSV files. The layout supports phones and desktop browsers.
+
+### IQR lap filtering
+
+Results use the standard **1.5 × interquartile range (IQR)** rule per kart, with no fixed minimum or maximum lap time. Q1 and Q3 are the 25th and 75th percentiles, calculated using inclusive linear interpolation: position `(n − 1) × percentile` in the sorted lap times. IQR is `Q3 − Q1`. Laps below `Q1 − 1.5 × IQR` or above `Q3 + 1.5 × IQR` are excluded; times exactly on either boundary remain included. Fewer than four recorded laps are kept unchanged. If IQR is zero, only times equal to the quartiles remain included.
+
+Averages, rankings, deltas, best/worst times, standard deviation, and charts use included laps consistently. The session/folder average is weighted by the number of included laps. **Laps used** and the IQR notice show included, recorded, and excluded counts. Kart details keep every original lap visible and mark outliers **IQR excluded**; charts align by included lap order. CSV summaries include laps used, recorded laps, and IQR exclusions.
+
+For folders and temporary combinations, raw laps are pooled and overlapping sources deduplicated **before** recalculating IQR for each kart. An excluded lap can become eligible in a different pooled comparison. No stored timings are deleted or changed, including existing uploads and folder copies shared between devices.
 
 ### Settings and themes
 
@@ -77,7 +85,7 @@ Use **Combine sessions** to pool sessions already saved in your browser. Choose 
 
 Folder comparisons continue to update automatically from their saved member sessions. Temporary combinations do not change folder membership. You can still export their results to CSV before dismissing them.
 
-Matching kart numbers share one average calculated from all their raw lap times. For example, one lap at 60 seconds and three laps at 90 seconds produce an average of 82.5 seconds. Combining overlapping groups counts each original source session once. Kart details show the original session and worksheet for every lap, and combined CSV exports use the pooled results.
+Matching kart numbers share one average calculated from all their raw lap times. For example, laps at 60, 70, 80, and 90 seconds all fall within the IQR bounds and produce an average of 75 seconds. This weights one lap from the first session and three from the second by their included lap counts. Combining overlapping groups counts each original source session once. Kart details show the original session and worksheet for every lap, and combined CSV exports use the pooled results.
 
 Workbook parsing happens entirely in the browser. Parsed sessions are stored in this browser’s `localStorage`; the original workbook and driver names are not stored. There is no account, cloud sync, or server upload. Folder links and downloaded copies let you transfer selected folders between devices. Keep a downloaded folder copy before clearing browser data; CSV exports contain summary statistics rather than every raw lap.
 

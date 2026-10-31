@@ -59,20 +59,20 @@ test("folder uploads produce a live, persistent overall kart comparison and accu
   await expect(
     page.getByRole("heading", { name: "Overall kart comparison" }),
   ).toBeVisible();
-  await expect(page.locator(".metric-value").nth(1)).toHaveText("8");
+  await expect(page.locator(".metric-value").nth(1)).toHaveText("6");
   await expect(page.locator(".leaderboard tbody tr").first()).toContainText(
     "Kart 13",
   );
   await expect(page.locator(".delta-time").first()).toHaveText("0.000s");
-  await expect(page.locator(".delta-time").nth(1)).toHaveText("+17.000s");
+  await expect(page.locator(".delta-time").nth(1)).toHaveText("+24.000s");
   await page.getByLabel("Search kart number").fill("2");
-  await expect(page.locator(".delta-time")).toHaveText("+17.000s");
+  await expect(page.locator(".delta-time")).toHaveText("+24.000s");
   await page.getByLabel("Clear search").click();
   await page.getByLabel("Sort leaderboard").selectOption("best");
   await expect(page.locator(".leaderboard tbody tr").first()).toContainText(
-    "Kart 2",
+    "Kart 13",
   );
-  await expect(page.locator(".delta-time").first()).toHaveText("+17.000s");
+  await expect(page.locator(".delta-time").first()).toHaveText("0.000s");
   await page.locator("#session-select").selectOption({ label: "Morning heat" });
   await expect(page.locator(".delta-time").nth(1)).toHaveText("+4.000s");
   await page.locator("#session-select").selectOption({ label: "Race day" });
@@ -93,7 +93,7 @@ test("folder uploads produce a live, persistent overall kart comparison and accu
   await page.getByRole("button", { name: "Export results" }).click();
   const csv = await readFile(await (await downloadEvent).path(), "utf8");
   expect(csv).toContain("Gap to fastest average (seconds)");
-  expect(csv.trim().split("\r\n").at(-1).split(",").at(-1)).toBe("17.000");
+  expect(csv.trim().split("\r\n").at(-1).split(",").at(-1)).toBe("24.000");
   expect(errors).toEqual([]);
 });
 
@@ -172,6 +172,9 @@ test("folders and the delta column are usable on mobile", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Overall kart comparison" }),
   ).toBeVisible();
+  await page
+    .getByRole("columnheader", { name: "Δ TO FASTEST" })
+    .scrollIntoViewIfNeeded();
   await expect(
     page.getByRole("columnheader", { name: "Δ TO FASTEST" }),
   ).toBeInViewport();
@@ -246,16 +249,14 @@ test("Sessions can share one upload across folders, persist the choices and remo
   ).toBe(1);
   await page.getByLabel("Close dialog").click();
   await page.getByLabel("View folder").selectOption({ label: "Race day" });
-  await page
-    .getByLabel("Upload Excel lap times")
-    .setInputFiles(
-      await file("race.xlsx", "Race heat", {
-        2: [90, 90, 90],
-        13: [66, 66, 66],
-      }),
-    );
-  await expect(page.locator(".metric-value").nth(1)).toHaveText("8");
-  await expect(page.locator(".delta-time").nth(1)).toHaveText("+17.000s");
+  await page.getByLabel("Upload Excel lap times").setInputFiles(
+    await file("race.xlsx", "Race heat", {
+      2: [90, 90, 90],
+      13: [66, 66, 66],
+    }),
+  );
+  await expect(page.locator(".metric-value").nth(1)).toHaveText("6");
+  await expect(page.locator(".delta-time").nth(1)).toHaveText("+24.000s");
   await page.getByLabel("View folder").selectOption({ label: "Other track" });
   await page
     .getByLabel("Upload Excel lap times")

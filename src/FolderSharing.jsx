@@ -306,7 +306,7 @@ export function OpenFolderPanel({ initialLink = "", onImport }) {
                 {copy.sessions.length === 1 ? "session" : "sessions"} ·{" "}
                 {stats.karts.length}{" "}
                 {stats.karts.length === 1 ? "kart" : "karts"} ·{" "}
-                {stats.totalLaps} {stats.totalLaps === 1 ? "lap" : "laps"}
+                {stats.recordedLaps} {stats.recordedLaps === 1 ? "lap" : "laps"}
               </span>
             </div>
           </div>

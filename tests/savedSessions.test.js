@@ -81,6 +81,8 @@ test("empty timing summaries have no kart data or invented times", () => {
   assert.deepEqual(summarizeSession(undefined), {
     karts: [],
     totalLaps: 0,
+    recordedLaps: 0,
+    excludedLaps: 0,
     average: null,
     fastest: null,
   });

@@ -303,7 +303,7 @@ function LapChart({ karts, compact = false }) {
           "Hover over the chart to explore each lap"
         ) : (
           <>
-            Recorded lap {hovered + 1}
+            Included lap {hovered + 1}
             <span>·</span>
             {karts.map(
               (k, i) =>
@@ -450,6 +450,10 @@ export default function App() {
   const chartKart =
     stats.karts.find((k) => k.number === chartNumber) || stats.karts[0];
   const detailKart = stats.karts.find((k) => k.number === detailNumber);
+  const detailExcluded = useMemo(
+    () => new Set(detailKart?.excludedIndices || []),
+    [detailKart],
+  );
   const filtered = useMemo(() => {
     const list = stats.karts.filter((k) =>
       k.number.includes(query.trim().replace(/^#/, "")),
@@ -1073,7 +1077,7 @@ export default function App() {
                   <span>{session.fileName}</span>
                   <span className="divider-dot">·</span>
                   <CheckCheck size={15} />
-                  <span>All valid laps included</span>
+                  <span>IQR-filtered results</span>
                 </div>
               </div>
               {session.isTemporary && (
@@ -1113,8 +1117,8 @@ export default function App() {
                     ))}
                   </div>
                   <p>
-                    All valid laps are pooled by kart number. Each source
-                    session counts once.
+                    Recorded laps are pooled by kart number before IQR
+                    filtering. Each source session counts once.
                   </p>
                 </details>
               )}
@@ -1135,6 +1139,22 @@ export default function App() {
                   )}
                 </div>
               )}
+              <details className="iqr-filter-note">
+                <summary>
+                  <CheckCheck size={15} />
+                  IQR filtering · {stats.totalLaps} of {stats.recordedLaps} laps
+                  used · {stats.excludedLaps} excluded
+                </summary>
+                <p>
+                  Each kart keeps laps from Q1 − 1.5 × IQR to Q3 + 1.5 × IQR,
+                  including the boundaries. IQR is Q3 − Q1, using inclusive
+                  linearly interpolated quartiles. There are no fixed time
+                  limits. Fewer than four laps are kept unchanged. For folders
+                  and combinations, the range is recalculated from pooled raw
+                  laps. Original laps stay saved and remain visible in kart
+                  details.
+                </p>
+              </details>
               <div className="metrics-grid">
                 <Metric
                   label="Karts on track"
@@ -1143,10 +1163,14 @@ export default function App() {
                   footer="Just kart numbers. No driver names."
                 />
                 <Metric
-                  label="Laps recorded"
+                  label="Laps used"
                   icon={<Flag size={18} />}
                   value={stats.totalLaps.toLocaleString()}
-                  footer={`${Math.min(...stats.karts.map((k) => k.count)) === Math.max(...stats.karts.map((k) => k.count)) ? `${stats.karts[0].count} laps per kart` : "Across all imported karts"}`}
+                  footer={
+                    stats.excludedLaps
+                      ? `${stats.recordedLaps} recorded · ${stats.excludedLaps} IQR excluded`
+                      : `${Math.min(...stats.karts.map((k) => k.count)) === Math.max(...stats.karts.map((k) => k.count)) ? `${stats.karts[0].count} laps per kart` : "Across all imported karts"}`
+                  }
                 />
                 <Metric
                   label={
@@ -1158,7 +1182,7 @@ export default function App() {
                   }
                   icon={<Clock3 size={18} />}
                   value={formatTime(stats.average)}
-                  footer="Average of every valid recorded lap"
+                  footer="Weighted average of IQR-included laps"
                   time
                 />
                 <Metric
@@ -1192,8 +1216,8 @@ export default function App() {
                       </div>
                       <p>
                         {session.isFolder
-                          ? "All folder laps, ranked by average. Delta is the gap to the fastest average."
-                          : "Ranked by average lap time. Delta is the gap to the fastest average."}
+                          ? "IQR-filtered folder laps, ranked by average. Delta is the gap to the fastest average."
+                          : "Ranked by IQR-filtered average lap time. Delta is the gap to the fastest average."}
                       </p>
                     </div>
                     <span className="heading-icon">
@@ -1449,13 +1473,14 @@ export default function App() {
                 <LapChart karts={[chartKart]} compact />
                 <div className="chart-footer">
                   <span>
-                    <span className="axis-label">X</span> Recorded lap
+                    <span className="axis-label">X</span> Included lap order
                   </span>
                   <span>
                     <span className="axis-label">Y</span> Lap time in seconds
                   </span>
                   <span className="chart-footer-right">
-                    <Check size={13} /> All {chartKart.count} laps included
+                    <Check size={13} /> {chartKart.count} used ·{" "}
+                    {chartKart.excludedCount} IQR excluded
                   </span>
                 </div>
               </section>
@@ -1608,10 +1633,13 @@ export default function App() {
               are discarded and never saved in your sessions.
             </HelpStep>
             <HelpStep n="03" title="See the whole picture">
-              Every valid lap counts toward the average, including the first lap
-              and slower laps. Blank, zero and invalid times are skipped.
-              Rankings use average time; lower is faster. Delta is the gap to
-              the fastest average in the current session or folder.
+              Each kart uses the 1.5 × IQR rule to exclude unusually fast or
+              slow laps from its results. Q1 and Q3 use inclusive linear
+              interpolation. Laps on the boundaries stay included. With fewer
+              than four laps, all valid laps are used. The original laps stay
+              saved. Rankings use the filtered average; lower is faster. Delta
+              is the gap to the fastest average in the current session or
+              folder.
             </HelpStep>
             <HelpStep n="04" title="Give your sessions a folder">
               Create a folder, then choose saved sessions or upload files into
@@ -1704,7 +1732,7 @@ export default function App() {
                     />
                     <p>
                       {info.karts.length} karts<span>·</span>
-                      {info.totalLaps} laps
+                      {info.recordedLaps} recorded laps
                       {s.isCombined && (
                         <span className="sample-text">
                           {s.sources.length} combined
@@ -1772,9 +1800,10 @@ export default function App() {
           close={() => setModal(null)}
         >
           <p className="modal-description">
-            Choose sessions to pool their laps by kart number. Averages use
-            every valid lap, so longer sessions carry their fair share. The
-            combined analysis is temporary and clears on refresh.
+            Choose sessions to pool their recorded laps by kart number. IQR
+            filtering is recalculated on the pooled laps, and averages are
+            weighted by the number of included laps. The combined analysis is
+            temporary and clears on refresh.
           </p>
           <label className="combine-name-label" htmlFor="combine-name">
             Analysis name
@@ -1810,7 +1839,8 @@ export default function App() {
                   <span className="combine-option-info">
                     <strong>{s.name}</strong>
                     <small>
-                      {info.karts.length} karts · {info.totalLaps} laps
+                      {info.karts.length} karts · {info.recordedLaps} recorded
+                      laps
                       {s.isCombined
                         ? ` · ${s.sources.length} sessions combined`
                         : ""}
@@ -1872,8 +1902,10 @@ export default function App() {
               </strong>
             </div>
             <div>
-              <span>Recorded laps</span>
-              <strong>{detailKart.count}</strong>
+              <span>Laps used / recorded</span>
+              <strong>
+                {detailKart.count} / {detailKart.recordedCount}
+              </strong>
             </div>
             <div>
               <span>Consistency (SD)</span>
@@ -1902,8 +1934,11 @@ export default function App() {
                 </tr>
               </thead>
               <tbody>
-                {detailKart.laps.map((l, i) => (
-                  <tr key={i}>
+                {detailKart.allLaps.map((l, i) => (
+                  <tr
+                    key={i}
+                    className={detailExcluded.has(i) ? "iqr-excluded-row" : ""}
+                  >
                     <td>{l.lap}</td>
                     <td
                       className={
@@ -1911,8 +1946,12 @@ export default function App() {
                       }
                     >
                       {formatTime(l.seconds)}
-                      {l.seconds === detailKart.best && (
-                        <span className="best-pill">BEST</span>
+                      {detailExcluded.has(i) ? (
+                        <span className="outlier-pill">IQR excluded</span>
+                      ) : (
+                        l.seconds === detailKart.best && (
+                          <span className="best-pill">BEST</span>
+                        )
                       )}
                     </td>
                     <td
@@ -1931,8 +1970,13 @@ export default function App() {
             </table>
           </div>
           <p className="modal-footnote">
-            All valid laps are included. SD is the standard deviation: a smaller
-            number means more consistent laps.
+            {detailKart.excludedCount} of {detailKart.recordedCount} recorded
+            laps excluded by the 1.5 × IQR rule. Original laps are shown above;
+            charts and statistics use included laps only.{" "}
+            {detailKart.iqrRange
+              ? `Included range: ${detailKart.iqrRange.lower.toFixed(6)}–${detailKart.iqrRange.upper.toFixed(6)} seconds (inclusive).`
+              : "Fewer than four laps: no IQR exclusions."}{" "}
+            SD measures consistency among included laps.
           </p>
         </Modal>
       )}
@@ -1989,7 +2033,10 @@ export default function App() {
                         Kart {n}
                       </span>
                       <strong>{formatTime(k.average)}</strong>
-                      <small>Average · {k.count} laps</small>
+                      <small>
+                        IQR average · {k.count} laps used · {k.excludedCount}{" "}
+                        excluded
+                      </small>
                       <small className="comparison-delta">
                         Δ {formatDelta(k.delta)} to fastest average
                       </small>
@@ -1998,7 +2045,7 @@ export default function App() {
                 })}
               </div>
               <p className="modal-footnote">
-                Aligned by recorded lap order. All valid laps from{" "}
+                Aligned by included lap order. IQR-included laps from{" "}
                 {session.isCombined
                   ? `all ${session.sources.length} source sessions`
                   : "the uploaded session"}{" "}

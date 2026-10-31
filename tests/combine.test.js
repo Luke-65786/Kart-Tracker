@@ -24,7 +24,7 @@ function session(id, times, extras = {}) {
 
 test("combines matching kart numbers by pooling raw laps and weighting unequal sessions correctly", () => {
   const first = session("A", { 2: [60], 7: [70] });
-  const second = session("B", { 2: [90, 90, 90], 8: [80] });
+  const second = session("B", { 2: [70, 80, 90], 8: [80] });
   const before = JSON.stringify([first, second]);
   const combined = combineSessions([first, second], "  Race day  ");
   const stats = summarizeSession(combined);
@@ -32,14 +32,14 @@ test("combines matching kart numbers by pooling raw laps and weighting unequal s
   assert.equal(combined.isCombined, true);
   assert.equal(stats.totalLaps, 6);
   assert.equal(stats.karts.length, 3);
-  assert.equal(stats.karts.find((k) => k.number === "2").average, 82.5);
-  assert.equal(stats.average, 80);
+  assert.equal(stats.karts.find((k) => k.number === "2").average, 75);
+  assert.equal(stats.average, 75);
   assert.equal(combined.skipped, 2);
   assert.equal(combined.sources.length, 2);
   assert.equal(combined.karts[0].laps[0].sourceName, "Heat A");
   assert.equal(combined.karts[0].laps[1].sourceName, "Heat B");
   assert.equal(JSON.stringify([first, second]), before);
-  assert.ok(resultsCsv(combined).includes("2,4,82.500,60.000,90.000"));
+  assert.ok(resultsCsv(combined).includes("2,4,75.000,60.000,90.000"));
 });
 
 test("overlapping combined sessions and originals count each source session once", () => {
@@ -75,4 +75,16 @@ test("requires two distinct sources and supports existing sessions with optional
   assert.equal(combined.sheets, 2);
   assert.equal(combined.skipped, 1);
   assert.equal(summarizeSession(combined).totalLaps, 2);
+});
+
+test("combining recalculates IQR from raw laps instead of permanently dropping earlier outliers", () => {
+  const a = session("A", { 2: [40, 40, 40, 40, 60] });
+  const b = session("B", { 2: [58, 59, 60, 61, 62] });
+  assert.equal(summarizeSession(a).totalLaps, 4);
+  const combined = combineSessions([a, b]);
+  const result = summarizeSession(combined);
+  assert.equal(result.totalLaps, 10);
+  assert.equal(result.excludedLaps, 0);
+  assert.equal(result.average, 52);
+  assert.equal(a.karts[0].laps.length, 5);
 });
